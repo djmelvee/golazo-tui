@@ -16,10 +16,11 @@ const sidebarWidth = 18
 
 type Model struct {
 	w, h      int
-	route     string // "live" | "standings" | "fixtures"
+	route     string // "live" | "standings" | "fixtures" | "changelog"
 	live      screens.Live
 	standings screens.Standings
 	fixtures  screens.Fixtures
+	changelog screens.Changelog
 	db        *data.Store
 }
 
@@ -32,6 +33,7 @@ func New(db *data.Store) Model {
 	m.live.Load(db)
 	m.standings.Load(db)
 	m.fixtures.Load(db)
+	m.changelog.Load()
 	return m
 }
 
@@ -51,6 +53,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.live.SetSize(contentW, m.h-6)
 		m.standings.SetSize(contentW, m.h-6)
 		m.fixtures.SetSize(contentW, m.h-6)
+		m.changelog.SetSize(contentW, m.h-6)
 
 	case screens.TickMsg:
 		m.live.Load(m.db)
@@ -66,13 +69,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "f":
 			m.route = "fixtures"
 			m.fixtures.Load(m.db)
+		case "c":
+			m.route = "changelog"
+			m.changelog.Load()
 		case "j", "down":
-			if m.route == "standings" {
+			switch m.route {
+			case "standings":
 				m.standings.ScrollDown()
+			case "changelog":
+				m.changelog.ScrollDown()
 			}
 		case "k", "up":
-			if m.route == "standings" {
+			switch m.route {
+			case "standings":
 				m.standings.ScrollUp()
+			case "changelog":
+				m.changelog.ScrollUp()
 			}
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -89,13 +101,9 @@ func (m Model) View() tea.View {
 }
 
 func (m Model) render() string {
-	// Header
 	header := styles.HeaderBar(m.w)
-
-	// Sidebar
 	sidebar := renderSidebar(m.route, m.h)
 
-	// Content
 	var content string
 	switch m.route {
 	case "live":
@@ -104,6 +112,8 @@ func (m Model) render() string {
 		content = m.standings.View()
 	case "fixtures":
 		content = m.fixtures.View()
+	case "changelog":
+		content = m.changelog.View()
 	}
 
 	contentW := m.w - sidebarWidth
@@ -111,7 +121,6 @@ func (m Model) render() string {
 		contentW = 40
 	}
 
-	// Crop content to available height
 	contentHeight := m.h - 4 // header(1) + blank(1) + footer(1) + blank(1)
 	if contentHeight < 1 {
 		contentHeight = 20
@@ -120,38 +129,31 @@ func (m Model) render() string {
 	if len(contentLines) > contentHeight {
 		contentLines = contentLines[:contentHeight]
 	}
-	// Pad to fill height
 	for len(contentLines) < contentHeight {
 		contentLines = append(contentLines, "")
 	}
 
-	// Pad sidebar lines to same height
 	sidebarLines := strings.Split(sidebar, "\n")
 	for len(sidebarLines) < contentHeight {
 		sidebarLines = append(sidebarLines, strings.Repeat(" ", sidebarWidth))
 	}
 
-	// Join sidebar + content side by side
 	body := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		strings.Join(sidebarLines, "\n"),
 		strings.Join(contentLines, "\n"),
 	)
 
-	// Footer
 	footer := renderFooter(m.route, m.w)
-
 	return header + "\n" + body + "\n" + footer
 }
 
 func renderSidebar(route string, h int) string {
 	nav := func(key, label, r string) string {
-		var prefix string
 		if r == route {
-			prefix = styles.LiveBadge.Render("●")
+			prefix := styles.LiveBadge.Render("●")
 			return styles.ActiveNav.Render(fmt.Sprintf(" %s %-11s [%s]", prefix, label, key))
 		}
-		prefix = " "
 		return styles.InactiveNav.Render(fmt.Sprintf("   %-11s [%s]", label, key))
 	}
 
@@ -164,6 +166,7 @@ func renderSidebar(route string, h int) string {
 	sb.WriteString(nav("h", "LIVE", "live") + "\n")
 	sb.WriteString(nav("g", "Standings", "standings") + "\n")
 	sb.WriteString(nav("f", "Fixtures", "fixtures") + "\n")
+	sb.WriteString(nav("c", "Changelog", "changelog") + "\n")
 	sb.WriteString(" " + rule + "\n")
 	sb.WriteString(styles.GoldText.Render(" 🏆 WC 2026") + "\n")
 	sb.WriteString(styles.DimText.Render(" 48 Teams") + "\n")
@@ -177,6 +180,7 @@ func renderFooter(route string, w int) string {
 		hintKey("h", "live", route == "live"),
 		hintKey("g", "standings", route == "standings"),
 		hintKey("f", "fixtures", route == "fixtures"),
+		hintKey("c", "changelog", route == "changelog"),
 		styles.DimText.Render("q quit"),
 	}
 	bar := "  " + strings.Join(items, styles.DimText.Render("  ·  "))
@@ -185,7 +189,7 @@ func renderFooter(route string, w int) string {
 
 func hintKey(key, label string, active bool) string {
 	if active {
-		return styles.GoldText.Render(key+" "+label)
+		return styles.GoldText.Render(key + " " + label)
 	}
 	return styles.DimText.Render(key + " " + label)
 }

@@ -5,9 +5,9 @@ import "time"
 type MatchStatus string
 
 const (
-	StatusLive     MatchStatus = "live"
-	StatusFinished MatchStatus = "finished"
-	StatusUpcoming MatchStatus = "upcoming"
+	StatusLive     MatchStatus = "LIVE"
+	StatusFinished MatchStatus = "FT"
+	StatusUpcoming MatchStatus = "NS"
 )
 
 type Team struct {
