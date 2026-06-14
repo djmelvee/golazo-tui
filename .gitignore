@@ -3,3 +3,7 @@ bin/
 *.db-shm
 *.db-wal
 .claude/
+WORKFLOW.md
+.env
+.env.*
+!.env.example
