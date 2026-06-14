@@ -21,7 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Distinguish "no data at all" from "no live matches right now" on the live screen
 
 ### Added
-- `CLAUDE.md` — GitHub workflow rules: create issues with descriptions, ensure labels and topics, close issues in commit messages
+- `WORKFLOW.md` — GitHub workflow rules: create issues with descriptions, ensure labels and topics, close issues in commit messages
 
 ## [0.1.0] — 2026-06-14
 
