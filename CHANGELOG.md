@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-06-14
+
+### Fixed
+- Replaced incorrect seed data: removed Italy (did not qualify), added Bosnia and Herzegovina, Scotland, Curaçao, DR Congo, Uzbekistan, Cape Verde, and all other correct WC 2026 nations
+- 8 confirmed FT results June 11–14 with real scores; 0 LIVE (honest); 10 NS upcoming
+- Fixed API client: `GET /get/games` replaces non-existent `/matches?status=` endpoint
+- Fixed API client: `GET /get/groups` replaces non-existent `/standings` endpoint
+- LIVE/FT/NS status now derived from `finished` + `time_elapsed` fields (API has no status string)
+- Standings W/D/L computed from finished match data; `/get/groups` not used
+- Added `flagMap` for all 48 WC 2026 teams (API does not supply flag emojis)
+- Added 30-second in-memory game cache to avoid 4× duplicate API calls per fetch cycle
+- Replaced `log.Fatal` on missing `GOLAZO_API_TOKEN` with human-readable registration instructions
+- Distinguish "no data at all" from "no live matches right now" on the live screen
+
+### Added
+- `CLAUDE.md` — GitHub workflow rules: create issues with descriptions, ensure labels and topics, close issues in commit messages
+
 ## [0.1.0] — 2026-06-14
 
 ### Added

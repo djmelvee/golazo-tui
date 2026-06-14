@@ -102,8 +102,11 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 		}
 	}
 
-	if len(live)+len(finished)+len(upcoming) == 0 {
+	switch {
+	case len(live)+len(finished)+len(upcoming) == 0:
 		sb.WriteString(styles.DimText.Render("  No match data yet. Run golazo-fetcher or golazo-seed first.\n"))
+	case len(live) == 0:
+		sb.WriteString(styles.DimText.Render("  No matches currently live  ·  check back during match hours\n"))
 	}
 
 	return sb.String()

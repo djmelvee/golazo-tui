@@ -38,7 +38,17 @@ func main() {
 
 	apiToken := os.Getenv("GOLAZO_API_TOKEN")
 	if apiToken == "" {
-		log.Fatal("GOLAZO_API_TOKEN is not set. Register at POST /auth/register and set the token.")
+		fmt.Fprintln(os.Stderr, "Error: GOLAZO_API_TOKEN is not set.")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "To get a token (free, one-time registration):")
+		fmt.Fprintln(os.Stderr, `  curl -X POST http://worldcup26.ir:3050/auth/register \`)
+		fmt.Fprintln(os.Stderr, `       -H "Content-Type: application/json" \`)
+		fmt.Fprintln(os.Stderr, `       -d '{"username":"<you>","password":"<pass>","email":"<email>"}'`)
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Then:")
+		fmt.Fprintln(os.Stderr, "  export GOLAZO_API_TOKEN=<token>")
+		fmt.Fprintln(os.Stderr, "  golazo-fetcher --watch")
+		os.Exit(1)
 	}
 
 	db, err := data.Open(dbPath)

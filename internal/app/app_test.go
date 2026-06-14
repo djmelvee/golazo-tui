@@ -37,7 +37,6 @@ func TestLiveDashboard(t *testing.T) {
 
 	checks := []string{
 		"FIFA WORLD CUP 2026",
-		"LIVE MATCHES",
 		"●",
 		"FULL TIME",
 		"GOLAZO TUI",
