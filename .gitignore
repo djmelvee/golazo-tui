@@ -4,6 +4,7 @@ bin/
 *.db-wal
 .claude/
 WORKFLOW.md
+CLAUDE.md
 .env
 .env.*
 !.env.example
