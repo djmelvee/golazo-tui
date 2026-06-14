@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.2.0] — 2026-06-14
 
+### Added
+- `WORKFLOW.md` — project workflow documentation: issue creation, labels, topics, and commit conventions
+- Responsive layout — team names and venues scale with terminal width; works from 80 cols to fullscreen
+- Issue confirmation rule (rule 5) and README currency rule (rule 6) in `WORKFLOW.md`
+
 ### Fixed
 - Replaced incorrect seed data: removed Italy (did not qualify), added Bosnia and Herzegovina, Scotland, Curaçao, DR Congo, Uzbekistan, Cape Verde, and all other correct WC 2026 nations
 - 8 confirmed FT results June 11–14 with real scores; 0 LIVE (honest); 10 NS upcoming
@@ -19,9 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added 30-second in-memory game cache to avoid 4× duplicate API calls per fetch cycle
 - Replaced `log.Fatal` on missing `GOLAZO_API_TOKEN` with human-readable registration instructions
 - Distinguish "no data at all" from "no live matches right now" on the live screen
-
-### Added
-- `WORKFLOW.md` — GitHub workflow rules: create issues with descriptions, ensure labels and topics, close issues in commit messages
+- Corrected match kickoff times; all times displayed in CET (`Europe/Amsterdam` timezone)
+- README preview corrected with real FT results; feature list updated to reflect actual app state
 
 ## [0.1.0] — 2026-06-14
 
