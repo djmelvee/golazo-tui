@@ -8,17 +8,18 @@ Built with [Bubble Tea v2](https://charm.land/bubbletea) + [Lip Gloss v2](https:
   ╔══════════════════════════════════════════════════════════════════════╗
   ║  ⚽  FIFA WORLD CUP 2026  ·  🇺🇸 USA  🇨🇦 CANADA  🇲🇽 MEXICO         ║
   ╠══════════════╦═══════════════════════════════════════════════════════╣
-  ║ ⚽ GOLAZO    ║  ● LIVE MATCHES                                       ║
+  ║ ⚽ GOLAZO    ║  Updated 21:04 CET  ·  auto-refreshes every 30s      ║
   ║ ──────────── ║                                                       ║
-  ║ ● LIVE   [h] ║  ● 74'  🇩🇪 Germany  3 – 1  🇷🇸 Serbia               ║
-  ║   Standings  ║  ● 67'  🏴󠁧󠁢󠁥󠁮󠁧󠁿 England  0 – 0  🇸🇳 Senegal               ║
-  ║   Fixtures   ║  ● 45'  🇧🇷 Brazil   2 – 1  🇲🇽 Mexico                ║
-  ║ ──────────── ║  ● 22'  🇺🇸 USA      1 – 0  🇵🇦 Panama                ║
-  ║ 🏆 WC 2026   ║                                                       ║
-  ║ 48 Teams     ║  FULL TIME                                            ║
-  ║ 12 Groups    ║  FT  🇦🇷 Argentina  2 – 0  🇨🇱 Chile                   ║
+  ║ ● LIVE   [h] ║  No matches currently live · check back during        ║
+  ║   Standings  ║  match hours                                          ║
+  ║   Fixtures   ║                                                       ║
+  ║   Changelog  ║  FULL TIME                                            ║
+  ║ ──────────── ║  FT  🇲🇽 Mexico        2 – 0  🇿🇦 South Africa        ║
+  ║ 🏆 WC 2026   ║  FT  🇰🇷 South Korea   2 – 1  🇨🇿 Czech Republic      ║
+  ║ 48 Teams     ║  FT  🇺🇸 United States  4 – 1  🇵🇾 Paraguay           ║
+  ║ 12 Groups    ║  FT  🇦🇺 Australia      2 – 0  🇹🇷 Türkiye             ║
   ╠══════════════╩═══════════════════════════════════════════════════════╣
-  ║  h live · g standings · f fixtures · q quit                         ║
+  ║  h live · g standings · f fixtures · c changelog · q quit           ║
   ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -27,8 +28,10 @@ Built with [Bubble Tea v2](https://charm.land/bubbletea) + [Lip Gloss v2](https:
 - **Live dashboard** — current matches with live minute counter and score
 - **Group standings** — all 12 groups (A–L), 48 teams, GD column, top-2 highlighted in gold
 - **Upcoming fixtures** — next matches grouped by date with matchday labels
+- **Changelog** — in-app changelog viewer (scrollable)
 - **Auto-refresh** — live screen polls the cache every 30 seconds
 - **Offline seed** — works without API access using realistic WC2026 sample data
+- **Responsive layout** — names and venues scale with terminal width; works at 80 cols and fullscreen
 
 ## Quick Start (Windows)
 
@@ -71,7 +74,8 @@ export GOLAZO_API_TOKEN=your_token_here
 | `h` | Live dashboard |
 | `g` | Group standings |
 | `f` | Upcoming fixtures |
-| `j` / `k` | Scroll standings down / up |
+| `c` | Changelog |
+| `j` / `k` | Scroll standings / changelog down / up |
 | `q` | Quit |
 
 ## Architecture
