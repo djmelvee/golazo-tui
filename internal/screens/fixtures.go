@@ -31,7 +31,17 @@ func (f Fixtures) View() string {
 		return styles.DimText.Render("  No upcoming fixtures. Run golazo-seed first.\n")
 	}
 
-	// Sort by kickoff
+	// Fixture row overhead: "  " + 2×(flag≈2 + space) + " vs  " + "  " + kickoff(17) + "  " ≈ 34
+	// Names get priority; venue fills whatever remains.
+	nameW := clamp((f.w-34)/2, 10, 22)
+	venueW := f.w - 34 - 2*nameW
+	if venueW < 6 {
+		venueW = 0
+	}
+	if f.w <= 0 { // before first WindowSizeMsg
+		nameW, venueW = 18, 0
+	}
+
 	sorted := make([]wc.Match, len(f.matches))
 	copy(sorted, f.matches)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -42,7 +52,6 @@ func (f Fixtures) View() string {
 	sb.WriteString(styles.Heading.Render("  ─── UPCOMING FIXTURES  ·  GROUP STAGE  ·  times in CET"))
 	sb.WriteString("\n\n")
 
-	// Group by date
 	type dateGroup struct {
 		date    time.Time
 		matches []wc.Match
@@ -73,7 +82,7 @@ func (f Fixtures) View() string {
 		sb.WriteString("\n")
 
 		for _, m := range g.matches {
-			sb.WriteString(renderFixtureRow(m))
+			sb.WriteString(renderFixtureRow(m, nameW, venueW))
 			sb.WriteString("\n")
 		}
 		sb.WriteString("\n")
@@ -82,12 +91,17 @@ func (f Fixtures) View() string {
 	return sb.String()
 }
 
-func renderFixtureRow(m wc.Match) string {
+func renderFixtureRow(m wc.Match, nameW, venueW int) string {
 	kickoff := m.KickoffAt.In(cetLoc).Format("15:04")
-	return fmt.Sprintf("  %s %-18s vs  %s %-18s  %s  %s",
-		m.HomeTeam.Flag, m.HomeTeam.Name,
-		m.AwayTeam.Flag, m.AwayTeam.Name,
+	homeName := truncate(m.HomeTeam.Name, nameW)
+	awayName := truncate(m.AwayTeam.Name, nameW)
+	row := fmt.Sprintf("  %s %-*s vs  %s %-*s  %s",
+		m.HomeTeam.Flag, nameW, homeName,
+		m.AwayTeam.Flag, nameW, awayName,
 		styles.GoldText.Render(kickoff),
-		styles.DimText.Render(m.Venue),
 	)
+	if venueW > 0 {
+		row += "  " + styles.DimText.Render(venueShort(m.Venue, venueW))
+	}
+	return row
 }

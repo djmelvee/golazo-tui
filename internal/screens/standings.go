@@ -20,6 +20,7 @@ type Standings struct {
 func (s *Standings) SetSize(w, h int) {
 	s.w = w
 	s.h = h
+	s.lines = s.renderLines() // re-render at new width
 }
 
 func (s *Standings) Load(db *data.Store) {
@@ -65,7 +66,6 @@ func (s Standings) View() string {
 		sb.WriteString("\n")
 	}
 
-	// Scroll hint
 	if len(s.lines) > visible {
 		sb.WriteString("\n")
 		sb.WriteString(styles.DimText.Render(
@@ -77,7 +77,19 @@ func (s Standings) View() string {
 
 var groupOrder = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"}
 
+// standingsNameWidth computes the team name column width from the content area
+// width. Flag emoji (~2 visual cols) + space + name + 8 stat columns ≈ 41 chars
+// overhead. Names grow up to 22 chars (longest: "Bosnia and Herzegovina").
+func standingsNameWidth(contentW int) int {
+	if contentW <= 0 {
+		contentW = 62 // sensible default before first WindowSizeMsg
+	}
+	// overhead: 2 indent + 2 flag + 1 space + 8 stat cols (36) = 41
+	return clamp((contentW-41)/1, 10, 22)
+}
+
 func (s *Standings) renderLines() []string {
+	nameW := standingsNameWidth(s.w)
 	var lines []string
 
 	for _, grp := range groupOrder {
@@ -86,22 +98,20 @@ func (s *Standings) renderLines() []string {
 			continue
 		}
 
-		// Group header
 		header := fmt.Sprintf("  ─── GROUP %s  ·  FIFA WORLD CUP 2026", grp)
 		lines = append(lines, styles.Heading.Render(header))
 		lines = append(lines, "")
 
-		// Column header
-		colHdr := fmt.Sprintf("  %-22s %3s %3s %3s %3s %4s %4s %4s %4s",
-			"Team", "P", "W", "D", "L", "GF", "GA", "GD", "Pts")
+		// Column header: "Team" spans flag(≈2vis) + space + nameW; +2 compensates
+		// for flag byte-width vs visual-width so the header aligns with data rows.
+		colHdr := fmt.Sprintf("  %-*s %3s %3s %3s %3s %4s %4s %4s %4s",
+			nameW+2, "Team", "P", "W", "D", "L", "GF", "GA", "GD", "Pts")
 		lines = append(lines, styles.DimText.Render(colHdr))
 
 		for i, row := range rows {
-			line := renderGroupRow(row, i < 2)
-			lines = append(lines, line)
+			lines = append(lines, renderGroupRow(row, i < 2, nameW))
 		}
 
-		// Qualified note (only when at least some matches played)
 		anyPlayed := false
 		for _, row := range rows {
 			if row.Played > 0 {
@@ -118,18 +128,17 @@ func (s *Standings) renderLines() []string {
 	return lines
 }
 
-func renderGroupRow(row wc.GroupRow, advancing bool) string {
+func renderGroupRow(row wc.GroupRow, advancing bool, nameW int) string {
 	gd := fmt.Sprintf("%+d", row.GD)
 	if row.GD == 0 {
 		gd = "0"
 	}
-
-	line := fmt.Sprintf("  %s %-20s %3d %3d %3d %3d %4d %4d %4s %4d",
-		row.Team.Flag, row.Team.Name,
+	name := truncate(row.Team.Name, nameW)
+	line := fmt.Sprintf("  %s %-*s %3d %3d %3d %3d %4d %4d %4s %4d",
+		row.Team.Flag, nameW, name,
 		row.Played, row.W, row.D, row.L,
 		row.GF, row.GA, gd, row.Pts,
 	)
-
 	if advancing {
 		return styles.Advancing.Render(line)
 	}

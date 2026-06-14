@@ -18,6 +18,29 @@ var cetLoc = func() *time.Location {
 	return loc
 }()
 
+// clamp constrains v to [lo, hi].
+func clamp(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+// truncate shortens s to at most n runes, adding "…" if cut.
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	if n <= 1 {
+		return "…"
+	}
+	return string(r[:n-1]) + "…"
+}
+
 // TickMsg is sent every 30 seconds to refresh the live screen.
 type TickMsg time.Time
 

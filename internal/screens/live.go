@@ -14,32 +14,68 @@ import (
 // Live is the live-match dashboard screen.
 type Live struct {
 	w, h      int
-	body      string
+	live      []wc.Match
+	finished  []wc.Match
+	upcoming  []wc.Match
 	updatedAt time.Time
+	body      string
 }
 
 func (l *Live) SetSize(w, h int) {
 	l.w = w
 	l.h = h
+	l.body = l.render(l.live, l.finished, l.upcoming)
 }
 
 // Load fetches data from the cache and rebuilds the rendered body.
 func (l *Live) Load(db *data.Store) {
-	live := db.LiveMatches()
-	finished := db.FinishedMatches()
-	upcoming := db.UpcomingMatches()
+	l.live = db.LiveMatches()
+	l.finished = db.FinishedMatches()
+	l.upcoming = db.UpcomingMatches()
 	l.updatedAt = db.LastUpdated("matches:live")
-	l.body = l.render(live, finished, upcoming)
+	l.body = l.render(l.live, l.finished, l.upcoming)
 }
 
 func (l *Live) View() string {
 	return l.body
 }
 
+// liveWidths returns the name column width and venue max length for the
+// live/FT rows given the content area width.
+// FT row fixed overhead: "  FT  " + 2×(flag≈2 + space) + score(5) + spaces ≈ 22 chars.
+// Names get priority; venue gets whatever remains (0 if none).
+func liveWidths(contentW int) (nameW, venueW int) {
+	if contentW <= 0 {
+		contentW = 62
+	}
+	nameW = clamp((contentW-22)/2, 10, 22)
+	venueW = contentW - 22 - 2*nameW
+	if venueW < 6 {
+		venueW = 0
+	}
+	return
+}
+
+// upcomingWidths returns name/venue widths for upcoming rows.
+// Overhead: "  " + 2×(flag + space) + " vs  " + "  " + kickoff(17) + "  " ≈ 34 chars.
+func upcomingWidths(contentW int) (nameW, venueW int) {
+	if contentW <= 0 {
+		contentW = 62
+	}
+	nameW = clamp((contentW-34)/2, 10, 22)
+	venueW = contentW - 34 - 2*nameW
+	if venueW < 6 {
+		venueW = 0
+	}
+	return
+}
+
 func (l *Live) render(live, finished, upcoming []wc.Match) string {
+	nameW, venueW := liveWidths(l.w)
+	upNameW, upVenueW := upcomingWidths(l.w)
+
 	var sb strings.Builder
 
-	// Updated-at line
 	if !l.updatedAt.IsZero() {
 		sb.WriteString(styles.DimText.Render(
 			fmt.Sprintf("  Updated %s CET  ·  auto-refreshes every 30s\n", l.updatedAt.In(cetLoc).Format("15:04")),
@@ -62,11 +98,11 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 			if live[j].Minute != nil {
 				mj = *live[j].Minute
 			}
-			return mi > mj // highest minute first
+			return mi > mj
 		})
 
 		for _, m := range live {
-			sb.WriteString(renderLiveRow(m))
+			sb.WriteString(renderLiveRow(m, nameW, venueW))
 			sb.WriteString("\n")
 		}
 		sb.WriteString("\n")
@@ -77,7 +113,7 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 		sb.WriteString(styles.DimText.Render("  FULL TIME"))
 		sb.WriteString("\n\n")
 		for _, m := range finished {
-			sb.WriteString(renderFTRow(m))
+			sb.WriteString(renderFTRow(m, nameW, venueW))
 			sb.WriteString("\n")
 		}
 		sb.WriteString("\n")
@@ -97,7 +133,7 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 			shown = shown[:6]
 		}
 		for _, m := range shown {
-			sb.WriteString(renderUpcomingRow(m))
+			sb.WriteString(renderUpcomingRow(m, upNameW, upVenueW))
 			sb.WriteString("\n")
 		}
 	}
@@ -112,8 +148,8 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 	return sb.String()
 }
 
-func renderLiveRow(m wc.Match) string {
-	minute := "  '"
+func renderLiveRow(m wc.Match, nameW, venueW int) string {
+	minute := "   '"
 	if m.Minute != nil {
 		minute = fmt.Sprintf("%3d'", *m.Minute)
 	}
@@ -122,43 +158,61 @@ func renderLiveRow(m wc.Match) string {
 	if m.HomeScore != nil && m.AwayScore != nil {
 		score = fmt.Sprintf("%d – %d", *m.HomeScore, *m.AwayScore)
 	}
-	teams := fmt.Sprintf("  %s %-18s %s  %s %-18s",
-		m.HomeTeam.Flag, m.HomeTeam.Name,
+	homeName := truncate(m.HomeTeam.Name, nameW)
+	awayName := truncate(m.AwayTeam.Name, nameW)
+	teams := fmt.Sprintf("  %s %-*s %s  %s %-*s",
+		m.HomeTeam.Flag, nameW, homeName,
 		styles.Bold.Render(score),
-		m.AwayTeam.Flag, m.AwayTeam.Name,
+		m.AwayTeam.Flag, nameW, awayName,
 	)
-	venue := styles.DimText.Render("  " + venueShort(m.Venue))
-	return "  " + min + " " + teams + venue
+	row := "  " + min + " " + teams
+	if venueW > 0 {
+		row += "  " + styles.DimText.Render(venueShort(m.Venue, venueW))
+	}
+	return row
 }
 
-func renderFTRow(m wc.Match) string {
+func renderFTRow(m wc.Match, nameW, venueW int) string {
 	score := "– –"
 	if m.HomeScore != nil && m.AwayScore != nil {
 		score = fmt.Sprintf("%d – %d", *m.HomeScore, *m.AwayScore)
 	}
-	return fmt.Sprintf("  %s  %s %-18s %s  %s %-18s  %s",
+	homeName := truncate(m.HomeTeam.Name, nameW)
+	awayName := truncate(m.AwayTeam.Name, nameW)
+	row := fmt.Sprintf("  %s  %s %-*s %s  %s %-*s",
 		styles.DimText.Render("FT"),
-		m.HomeTeam.Flag, m.HomeTeam.Name,
+		m.HomeTeam.Flag, nameW, homeName,
 		styles.DimText.Render(score),
-		m.AwayTeam.Flag, m.AwayTeam.Name,
-		styles.DimText.Render(venueShort(m.Venue)),
+		m.AwayTeam.Flag, nameW, awayName,
 	)
-}
-
-func renderUpcomingRow(m wc.Match) string {
-	kickoff := m.KickoffAt.In(cetLoc).Format("Mon 02 Jan  15:04")
-	return fmt.Sprintf("  %s %-18s vs  %s %-18s  %s  %s",
-		m.HomeTeam.Flag, m.HomeTeam.Name,
-		m.AwayTeam.Flag, m.AwayTeam.Name,
-		styles.GoldText.Render(kickoff),
-		styles.DimText.Render(venueShort(m.Venue)),
-	)
-}
-
-func venueShort(venue string) string {
-	// Truncate to ~30 chars for the live row
-	if len(venue) > 32 {
-		return venue[:29] + "…"
+	if venueW > 0 {
+		row += "  " + styles.DimText.Render(venueShort(m.Venue, venueW))
 	}
-	return venue
+	return row
+}
+
+func renderUpcomingRow(m wc.Match, nameW, venueW int) string {
+	kickoff := m.KickoffAt.In(cetLoc).Format("Mon 02 Jan  15:04")
+	homeName := truncate(m.HomeTeam.Name, nameW)
+	awayName := truncate(m.AwayTeam.Name, nameW)
+	row := fmt.Sprintf("  %s %-*s vs  %s %-*s  %s",
+		m.HomeTeam.Flag, nameW, homeName,
+		m.AwayTeam.Flag, nameW, awayName,
+		styles.GoldText.Render(kickoff),
+	)
+	if venueW > 0 {
+		row += "  " + styles.DimText.Render(venueShort(m.Venue, venueW))
+	}
+	return row
+}
+
+func venueShort(venue string, maxLen int) string {
+	r := []rune(venue)
+	if len(r) <= maxLen {
+		return venue
+	}
+	if maxLen <= 1 {
+		return "…"
+	}
+	return string(r[:maxLen-1]) + "…"
 }
