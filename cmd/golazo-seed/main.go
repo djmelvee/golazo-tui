@@ -37,6 +37,7 @@ func main() {
 	threeDaysAgo := today.Add(-72 * time.Hour)
 	tomorrow := today.Add(24 * time.Hour)
 	twoDays := today.Add(48 * time.Hour)
+	threeDays := today.Add(72 * time.Hour)
 
 	// ── TEAMS (48 confirmed WC 2026 qualified nations) ────────────────────────
 	// Source: UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC final draw results.
@@ -189,80 +190,88 @@ func main() {
 	}
 
 	// ── UPCOMING / NS (June 14 later + next days) ─────────────────────────────
-	// No scores — only kickoff time and venue.
+	// All times UTC. Sources: ESPN/CBS Sports confirmed schedule.
+	// CET = UTC+1, CEST (June) = UTC+2. Dutch viewers add 2h to UTC times.
 
 	upcomingMatches := []wc.Match{
-		// June 14 — later today (Group E matches)
+		// June 14 — 17:00 UTC = 19:00 CEST
 		{
 			ID: 201, HomeTeam: teams["GER"], AwayTeam: teams["CUW"],
 			Status:    wc.StatusUpcoming,
-			KickoffAt: today.Add(18 * time.Hour),
+			KickoffAt: today.Add(17 * time.Hour),
 			Venue:     "NRG Stadium, Houston TX",
 			Group: "E", Stage: "group", Matchday: 1,
 		},
+		// June 14 — 20:00 UTC = 22:00 CEST
 		{
 			ID: 202, HomeTeam: teams["NED"], AwayTeam: teams["JPN"],
 			Status:    wc.StatusUpcoming,
-			KickoffAt: today.Add(21 * time.Hour),
+			KickoffAt: today.Add(20 * time.Hour),
 			Venue:     "AT&T Stadium, Arlington TX",
 			Group: "F", Stage: "group", Matchday: 1,
 		},
+		// June 14 — 23:00 UTC = 01:00 CEST (Jun 15)
 		{
 			ID: 203, HomeTeam: teams["CIV"], AwayTeam: teams["ECU"],
 			Status:    wc.StatusUpcoming,
-			KickoffAt: today.Add(21 * time.Hour),
+			KickoffAt: today.Add(23 * time.Hour),
 			Venue:     "Lincoln Financial Field, Philadelphia PA",
 			Group: "E", Stage: "group", Matchday: 1,
 		},
+		// June 15 — 02:00 UTC = 04:00 CEST
 		{
 			ID: 204, HomeTeam: teams["SWE"], AwayTeam: teams["TUN"],
 			Status:    wc.StatusUpcoming,
-			KickoffAt: today.Add(23 * time.Hour),
+			KickoffAt: tomorrow.Add(2 * time.Hour),
 			Venue:     "Estadio BBVA, Monterrey",
 			Group: "F", Stage: "group", Matchday: 1,
 		},
-		// June 15
+		// June 15 — 16:00 UTC = 18:00 CEST
 		{
-			ID: 205, HomeTeam: teams["BEL"], AwayTeam: teams["EGY"],
+			ID: 205, HomeTeam: teams["ESP"], AwayTeam: teams["CPV"],
 			Status:    wc.StatusUpcoming,
-			KickoffAt: tomorrow.Add(14 * time.Hour),
-			Venue:     "Rose Bowl, Pasadena CA",
-			Group: "G", Stage: "group", Matchday: 1,
-		},
-		{
-			ID: 206, HomeTeam: teams["ESP"], AwayTeam: teams["URU"],
-			Status:    wc.StatusUpcoming,
-			KickoffAt: tomorrow.Add(17 * time.Hour),
-			Venue:     "Estadio Azteca, Mexico City",
+			KickoffAt: tomorrow.Add(16 * time.Hour),
+			Venue:     "Mercedes-Benz Stadium, Atlanta GA",
 			Group: "H", Stage: "group", Matchday: 1,
 		},
+		// June 15 — 22:00 UTC = 00:00 CEST (Jun 16)
+		{
+			ID: 206, HomeTeam: teams["BEL"], AwayTeam: teams["EGY"],
+			Status:    wc.StatusUpcoming,
+			KickoffAt: tomorrow.Add(22 * time.Hour),
+			Venue:     "Lumen Field, Seattle WA",
+			Group: "G", Stage: "group", Matchday: 1,
+		},
+		// June 16 — 19:00 UTC = 21:00 CEST
 		{
 			ID: 207, HomeTeam: teams["FRA"], AwayTeam: teams["SEN"],
 			Status:    wc.StatusUpcoming,
-			KickoffAt: tomorrow.Add(20 * time.Hour),
+			KickoffAt: twoDays.Add(19 * time.Hour),
 			Venue:     "MetLife Stadium, New Jersey",
 			Group: "I", Stage: "group", Matchday: 1,
 		},
-		// June 16
+		// June 17 — 01:00 UTC = 03:00 CEST
 		{
 			ID: 208, HomeTeam: teams["ARG"], AwayTeam: teams["ALG"],
 			Status:    wc.StatusUpcoming,
-			KickoffAt: twoDays.Add(14 * time.Hour),
-			Venue:     "SoFi Stadium, Inglewood CA",
+			KickoffAt: threeDays.Add(1 * time.Hour),
+			Venue:     "Arrowhead Stadium, Kansas City MO",
 			Group: "J", Stage: "group", Matchday: 1,
 		},
+		// June 17 — 17:00 UTC = 19:00 CEST
 		{
 			ID: 209, HomeTeam: teams["POR"], AwayTeam: teams["COD"],
 			Status:    wc.StatusUpcoming,
-			KickoffAt: twoDays.Add(17 * time.Hour),
-			Venue:     "Levi's Stadium, Santa Clara CA",
+			KickoffAt: threeDays.Add(17 * time.Hour),
+			Venue:     "NRG Stadium, Houston TX",
 			Group: "K", Stage: "group", Matchday: 1,
 		},
+		// June 17 — 20:00 UTC = 22:00 CEST
 		{
 			ID: 210, HomeTeam: teams["ENG"], AwayTeam: teams["CRO"],
 			Status:    wc.StatusUpcoming,
-			KickoffAt: twoDays.Add(20 * time.Hour),
-			Venue:     "BC Place, Vancouver",
+			KickoffAt: threeDays.Add(20 * time.Hour),
+			Venue:     "AT&T Stadium, Arlington TX",
 			Group: "L", Stage: "group", Matchday: 1,
 		},
 	}

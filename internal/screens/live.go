@@ -42,7 +42,7 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 	// Updated-at line
 	if !l.updatedAt.IsZero() {
 		sb.WriteString(styles.DimText.Render(
-			fmt.Sprintf("  Updated %s  ·  auto-refreshes every 30s\n", l.updatedAt.Local().Format("15:04")),
+			fmt.Sprintf("  Updated %s CET  ·  auto-refreshes every 30s\n", l.updatedAt.In(cetLoc).Format("15:04")),
 		))
 	} else {
 		sb.WriteString(styles.DimText.Render("  Loading match data...\n"))
@@ -146,7 +146,7 @@ func renderFTRow(m wc.Match) string {
 }
 
 func renderUpcomingRow(m wc.Match) string {
-	kickoff := m.KickoffAt.Local().Format("Mon 02 Jan  15:04")
+	kickoff := m.KickoffAt.In(cetLoc).Format("Mon 02 Jan  15:04")
 	return fmt.Sprintf("  %s %-18s vs  %s %-18s  %s  %s",
 		m.HomeTeam.Flag, m.HomeTeam.Name,
 		m.AwayTeam.Flag, m.AwayTeam.Name,

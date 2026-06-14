@@ -39,7 +39,7 @@ func (f Fixtures) View() string {
 	})
 
 	var sb strings.Builder
-	sb.WriteString(styles.Heading.Render("  ─── UPCOMING FIXTURES  ·  GROUP STAGE"))
+	sb.WriteString(styles.Heading.Render("  ─── UPCOMING FIXTURES  ·  GROUP STAGE  ·  times in CET"))
 	sb.WriteString("\n\n")
 
 	// Group by date
@@ -51,13 +51,13 @@ func (f Fixtures) View() string {
 	dateMap := make(map[string]int)
 
 	for _, m := range sorted {
-		dateKey := m.KickoffAt.Local().Format("2006-01-02")
+		dateKey := m.KickoffAt.In(cetLoc).Format("2006-01-02")
 		if idx, exists := dateMap[dateKey]; exists {
 			groups[idx].matches = append(groups[idx].matches, m)
 		} else {
 			dateMap[dateKey] = len(groups)
 			groups = append(groups, dateGroup{
-				date:    m.KickoffAt.Local(),
+				date:    m.KickoffAt.In(cetLoc),
 				matches: []wc.Match{m},
 			})
 		}
@@ -83,7 +83,7 @@ func (f Fixtures) View() string {
 }
 
 func renderFixtureRow(m wc.Match) string {
-	kickoff := m.KickoffAt.Local().Format("15:04")
+	kickoff := m.KickoffAt.In(cetLoc).Format("15:04")
 	return fmt.Sprintf("  %s %-18s vs  %s %-18s  %s  %s",
 		m.HomeTeam.Flag, m.HomeTeam.Name,
 		m.AwayTeam.Flag, m.AwayTeam.Name,
