@@ -29,16 +29,20 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-echo   Seeding match data...
-bin\golazo-seed.exe
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo   ERROR: Seed failed.
-    pause
-    exit /b 1
+set DB_PATH=%USERPROFILE%\.cache\golazo-tui\cache.db
+if not exist "%DB_PATH%" (
+    echo   First run - seeding match data...
+    bin\golazo-seed.exe
+    if %ERRORLEVEL% neq 0 (
+        echo.
+        echo   ERROR: Seed failed.
+        pause
+        exit /b 1
+    )
+) else (
+    echo   Database found, skipping seed.
 )
 
-echo.
 echo   Launching... (press q to quit)
 echo.
 bin\golazo-tui.exe

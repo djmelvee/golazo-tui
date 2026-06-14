@@ -3,6 +3,7 @@ package data
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -113,4 +114,45 @@ func (s *Store) Standings() map[string][]wc.GroupRow {
 	out := make(map[string][]wc.GroupRow)
 	s.Get("standings", &out) //nolint:errcheck
 	return out
+}
+
+func (s *Store) GetEvents(matchID int) []wc.GoalEvent {
+	var out []wc.GoalEvent
+	s.Get(fmt.Sprintf("events:%d", matchID), &out) //nolint:errcheck
+	return out
+}
+
+func (s *Store) SetEvents(matchID int, events []wc.GoalEvent) error {
+	return s.Set(fmt.Sprintf("events:%d", matchID), events)
+}
+
+type lastScore struct {
+	H int `json:"h"`
+	A int `json:"a"`
+}
+
+// SetLastScore caches the most-recently-seen score for a match.
+// Called by the fetcher whenever a live match has a non-zero score, so that
+// the TUI can show it even after the match transitions to FT in time-promotion.
+func (s *Store) SetLastScore(matchID, home, away int) error {
+	return s.Set(fmt.Sprintf("lastscore:%d", matchID), lastScore{H: home, A: away})
+}
+
+// GetLastScore returns the last cached score for a match, if any.
+func (s *Store) GetLastScore(matchID int) (home, away int, ok bool) {
+	var ls lastScore
+	if _, err := s.Get(fmt.Sprintf("lastscore:%d", matchID), &ls); err != nil {
+		return 0, 0, false
+	}
+	return ls.H, ls.A, true
+}
+
+func (s *Store) GetToken() string {
+	var token string
+	s.Get("auth:token", &token) //nolint:errcheck
+	return token
+}
+
+func (s *Store) SetToken(token string) error {
+	return s.Set("auth:token", token)
 }

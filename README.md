@@ -8,7 +8,7 @@ Built with [Bubble Tea v2](https://charm.land/bubbletea) + [Lip Gloss v2](https:
   ╔══════════════════════════════════════════════════════════════════════╗
   ║  ⚽  FIFA WORLD CUP 2026  ·  🇺🇸 USA  🇨🇦 CANADA  🇲🇽 MEXICO         ║
   ╠══════════════╦═══════════════════════════════════════════════════════╣
-  ║ ⚽ GOLAZO    ║  Updated 21:04 CET  ·  auto-refreshes every 30s      ║
+  ║ ⚽ GOLAZO    ║  Updated 21:04 CET  ·  auto-refreshes every 5s       ║
   ║ ──────────── ║                                                       ║
   ║ ● LIVE   [h] ║  No matches currently live · check back during        ║
   ║   Standings  ║  match hours                                          ║
@@ -25,11 +25,13 @@ Built with [Bubble Tea v2](https://charm.land/bubbletea) + [Lip Gloss v2](https:
 
 ## Features
 
-- **Live dashboard** — current matches with live minute counter and score
+- **Live dashboard** — current matches with live minute counter, gold score, and blinking ● indicator
+- **Match detail** — press Enter on a live match for a full detail view: score, goal timeline, progress bar
 - **Group standings** — all 12 groups (A–L), 48 teams, GD column, top-2 highlighted in gold
 - **Upcoming fixtures** — next matches grouped by date with matchday labels
 - **Changelog** — in-app changelog viewer (scrollable)
-- **Auto-refresh** — live screen polls the cache every 30 seconds
+- **Auto-refresh** — live screen polls the cache every 5 seconds; live indicator pulses every second
+- **Goal tracking** — fetcher detects score changes and logs goal events with minute
 - **Offline seed** — works without API access using realistic WC2026 sample data
 - **Responsive layout** — names and venues scale with terminal width; works at 80 cols and fullscreen
 
@@ -83,7 +85,9 @@ export GOLAZO_API_TOKEN=your_token_here
 | `g` | Group standings |
 | `f` | Upcoming fixtures |
 | `c` | Changelog |
-| `j` / `k` | Scroll standings / changelog down / up |
+| `j` / `k` | Move cursor (live) · scroll (standings / changelog / detail) |
+| `Enter` | Open match detail for selected live match |
+| `b` | Back from match detail to live dashboard |
 | `q` | Quit |
 
 ## Architecture

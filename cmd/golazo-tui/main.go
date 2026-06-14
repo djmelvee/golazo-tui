@@ -2,19 +2,23 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/djmelvee/golazo-tui/internal/app"
+	"github.com/djmelvee/golazo-tui/internal/auth"
 	"github.com/djmelvee/golazo-tui/internal/data"
+	"github.com/djmelvee/golazo-tui/internal/wc"
 )
 
-const version = "v0.3.0"
+const version = "v0.5.0"
 
 func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
@@ -33,15 +37,48 @@ func main() {
 		dbPath = filepath.Join(home, ".cache", "golazo-tui", "cache.db")
 	}
 
-	db, err := data.OpenRO(dbPath)
+	db, err := data.Open(dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Cannot open cache DB at %s: %v\n", dbPath, err)
-		fmt.Fprintf(os.Stderr, "Run: go run ./cmd/golazo-seed\n")
 		os.Exit(1)
 	}
 	defer db.Close()
 
-	p := tea.NewProgram(app.New(db))
+	apiBase := os.Getenv("GOLAZO_API")
+	if apiBase == "" {
+		apiBase = "http://worldcup26.ir:3050"
+	}
+
+	// Resolve API token: env var → stored in DB → auto-register on first launch.
+	token := os.Getenv("GOLAZO_API_TOKEN")
+	if token == "" {
+		token = db.GetToken()
+	}
+	var startNote string
+	if token == "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		t, regErr := auth.Register(ctx, apiBase)
+		cancel()
+		if regErr == nil {
+			token = t
+			_ = db.SetToken(token)
+		} else {
+			// Surface the raw error in the TUI header and write to a debug log.
+			startNote = "auth: " + regErr.Error()
+			logPath := filepath.Join(filepath.Dir(dbPath), "debug.log")
+			_ = os.WriteFile(logPath, []byte("registration error: "+regErr.Error()+"\n"), 0644)
+		}
+	}
+
+	// Always create a client — if token is empty, the API may allow unauthed reads;
+	// if not, fetch errors appear in the header instead of silent offline mode.
+	client := wc.New(apiBase, token)
+
+	model := app.New(db, client)
+	if startNote != "" {
+		model = model.WithNote(startNote)
+	}
+	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}

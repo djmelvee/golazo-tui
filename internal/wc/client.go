@@ -170,6 +170,8 @@ func (c *Client) getGames(ctx context.Context) ([]apiGame, error) {
 }
 
 // deriveStatus maps worldcup26.ir game fields to our MatchStatus constants.
+// Falls back to time-based detection when time_elapsed is 0 at kickoff
+// (API lag: the field isn't always incremented the moment a match starts).
 func deriveStatus(g apiGame) MatchStatus {
 	if g.Finished {
 		return StatusFinished
@@ -177,11 +179,27 @@ func deriveStatus(g apiGame) MatchStatus {
 	if g.TimeElapsed > 0 {
 		return StatusLive
 	}
+	kickoff := parseKickoff(g.LocalDate)
+	if !kickoff.IsZero() {
+		since := time.Since(kickoff)
+		switch {
+		case since > -time.Minute && since < 130*time.Minute:
+			return StatusLive
+		case since >= 130*time.Minute:
+			// Match should be over; API hasn't set finished=true yet.
+			return StatusFinished
+		}
+	}
 	return StatusUpcoming
 }
 
-// parseKickoff tries RFC3339, then datetime-without-zone, then date-only.
+// parseKickoff tries multiple common formats.
+// RFC3339Nano is tried first — it handles both with and without fractional
+// seconds (e.g. "2026-06-14T21:00:00.000Z" and "2026-06-14T21:00:00Z").
 func parseKickoff(s string) time.Time {
+	if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
+		return t
+	}
 	if t, err := time.Parse(time.RFC3339, s); err == nil {
 		return t
 	}

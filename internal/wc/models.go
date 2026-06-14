@@ -2,6 +2,18 @@ package wc
 
 import "time"
 
+// GoalEvent records a detected score change during a live match.
+// Minute is the API's time_elapsed at the moment the change was detected —
+// approximate but typically accurate to within the fetcher poll interval.
+type GoalEvent struct {
+	MatchID    int       `json:"match_id"`
+	HomeScore  int       `json:"home_score"`
+	AwayScore  int       `json:"away_score"`
+	Minute     int       `json:"minute"`
+	ScoredBy   string    `json:"scored_by"` // "home" or "away"
+	DetectedAt time.Time `json:"detected_at"`
+}
+
 type MatchStatus string
 
 const (

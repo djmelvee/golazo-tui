@@ -14,12 +14,13 @@ import (
 	"time"
 
 	"github.com/djmelvee/golazo-tui/internal/data"
+	"github.com/djmelvee/golazo-tui/internal/fetcher"
 	"github.com/djmelvee/golazo-tui/internal/wc"
 )
 
 func main() {
 	watch := flag.Bool("watch", false, "keep running and poll on an interval")
-	interval := flag.Int("interval", 60, "polling interval in seconds (used with --watch)")
+	interval := flag.Int("interval", 5, "polling interval in seconds (used with --watch)")
 	flag.Parse()
 
 	dbPath := os.Getenv("GOLAZO_DB")
@@ -59,50 +60,17 @@ func main() {
 
 	client := wc.New(apiBase, apiToken)
 
-	fetch := func() error {
+	do := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-
-		live, err := client.FetchMatches(ctx, "live")
-		if err != nil {
-			return fmt.Errorf("fetch live: %w", err)
+		if err := fetcher.Fetch(ctx, client, db); err != nil {
+			log.Printf("fetch error: %v", err)
+		} else {
+			fmt.Printf("[%s] Fetched OK\n", time.Now().Format("15:04:05"))
 		}
-		if err := db.Set("matches:live", live); err != nil {
-			return fmt.Errorf("set live: %w", err)
-		}
-
-		upcoming, err := client.FetchMatches(ctx, "upcoming")
-		if err != nil {
-			return fmt.Errorf("fetch upcoming: %w", err)
-		}
-		if err := db.Set("matches:upcoming", upcoming); err != nil {
-			return fmt.Errorf("set upcoming: %w", err)
-		}
-
-		finished, err := client.FetchMatches(ctx, "finished")
-		if err != nil {
-			return fmt.Errorf("fetch finished: %w", err)
-		}
-		if err := db.Set("matches:finished", finished); err != nil {
-			return fmt.Errorf("set finished: %w", err)
-		}
-
-		standings, err := client.FetchStandings(ctx)
-		if err != nil {
-			return fmt.Errorf("fetch standings: %w", err)
-		}
-		if err := db.Set("standings", standings); err != nil {
-			return fmt.Errorf("set standings: %w", err)
-		}
-
-		fmt.Printf("[%s] Fetched %d live, %d upcoming, %d finished matches\n",
-			time.Now().Format("15:04:05"), len(live), len(upcoming), len(finished))
-		return nil
 	}
 
-	if err := fetch(); err != nil {
-		log.Printf("fetch error: %v", err)
-	}
+	do()
 
 	if !*watch {
 		return
@@ -118,9 +86,7 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			if err := fetch(); err != nil {
-				log.Printf("fetch error: %v", err)
-			}
+			do()
 		case <-sig:
 			fmt.Println("\nStopped.")
 			return

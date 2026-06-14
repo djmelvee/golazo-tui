@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-06-14
+
+### Added
+- Zero-config startup — auto-registers a JWT with worldcup26.ir on first launch; token stored in SQLite so subsequent launches use it directly; no manual `GOLAZO_API_TOKEN` setup needed
+- Background auto-fetch — TUI polls the API every 5 seconds internally (no external fetcher process required); scores and standings update live while the app is open
+- Match detail screen — press Enter on any live match for a full view: teams, gold score, pulsing ● minute, venue/group info, goal event liveblog, match progress bar; press b to return
+- Goal event tracking — detects score changes between polls via both worldcup26.ir live data and the ESPN fallback; stores `GoalEvent` records per match and renders them as `⚽` entries in the detail screen timeline
+- ESPN public scoreboard fallback — when worldcup26.ir is unreachable or auth fails, ESPN's unauthenticated scoreboard API patches live and finished scores directly in the DB; no token required
+- Live screen cursor — j/k moves selection through live/upcoming/finished rows; selected row highlighted with `>`; Enter opens detail screen
+- Last-score cache — finished-score is preserved across live→FT status transitions so scores never revert to `– –`
+
+### Fixed
+- Scores missing for matches with millisecond-precision timestamps (RFC3339Nano now tried first in `parseKickoff`)
+- Nil scores on time-promoted matches caused by duplicate entries from multiple API buckets (seenIDs deduplication in `Live.Load`)
+- `golazo.bat` written with CRLF line endings so it runs correctly on Windows without modification
+
+### Changed
+- j/k on the live screen now moves cursor; standings/changelog scroll unchanged
+- Header shows no error note when ESPN successfully provides live data during primary API outage
+
+## [0.4.0] — 2026-06-14
+
+### Added
+- Blinking ● live indicator — animates red ↔ dim at 1 s interval when matches are live; only the ● character re-renders (no full-screen flicker)
+- Sidebar live count badge — LIVE nav item shows a pulsing ● when matches are in progress, visible from any screen
+- Live match scores styled in gold (`GoldBold`) for visual prominence on the live dashboard
+
+### Changed
+- Data refresh interval reduced from 30 s to 5 s — live data appears within 5 s of the fetcher writing it; SQLite WAL read-through confirmed correct
+- Verified auto-refresh chain: `Init → TickCmd → TickMsg → Load(db) → TickCmd`; no bugs found
+
 ## [0.3.0] — 2026-06-14
 
 ### Added

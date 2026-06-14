@@ -30,7 +30,7 @@ func render(m tea.Model) string {
 
 func TestLiveDashboard(t *testing.T) {
 	db := openTestDB(t)
-	m := app.New(db)
+	m := app.New(db, nil)
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	out := render(m2)
@@ -51,7 +51,7 @@ func TestLiveDashboard(t *testing.T) {
 
 func TestStandingsScreen(t *testing.T) {
 	db := openTestDB(t)
-	m := app.New(db)
+	m := app.New(db, nil)
 	// Use a tall window so all 12 groups fit without scrolling
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 120})
 	m3, _ := m2.Update(tea.KeyPressMsg{Code: 'g'})
@@ -76,7 +76,7 @@ func TestStandingsScreen(t *testing.T) {
 
 func TestFixturesScreen(t *testing.T) {
 	db := openTestDB(t)
-	m := app.New(db)
+	m := app.New(db, nil)
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	m3, _ := m2.Update(tea.KeyPressMsg{Code: 'f'})
 
@@ -98,7 +98,7 @@ func TestFixturesScreen(t *testing.T) {
 
 func TestQuitKey(t *testing.T) {
 	db := openTestDB(t)
-	m := app.New(db)
+	m := app.New(db, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q'})
 	if cmd == nil {
 		t.Error("expected Quit cmd on 'q' press, got nil")
