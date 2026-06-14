@@ -2,6 +2,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -13,7 +14,16 @@ import (
 	"github.com/djmelvee/golazo-tui/internal/data"
 )
 
+const version = "v0.3.0"
+
 func main() {
+	showVersion := flag.Bool("version", false, "print version and exit")
+	flag.Parse()
+	if *showVersion {
+		fmt.Println("golazo-tui " + version)
+		return
+	}
+
 	dbPath := os.Getenv("GOLAZO_DB")
 	if dbPath == "" {
 		home, err := os.UserHomeDir()

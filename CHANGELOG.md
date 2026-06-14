@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-14
+
+### Added
+- GitHub Actions CI — `go build ./...` and `go vet ./...` on every push to main and every pull request (`.github/workflows/ci.yml`)
+- `--version` flag on `golazo-tui` — prints `golazo-tui v0.3.0` and exits; version defined as a single constant in `cmd/golazo-tui/main.go`
+- `go install github.com/djmelvee/golazo-tui/cmd/golazo-tui@latest` support — documented in README under new Install section
+
 ## [0.2.0] — 2026-06-14
 
 ### Added

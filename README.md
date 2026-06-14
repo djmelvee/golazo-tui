@@ -33,6 +33,14 @@ Built with [Bubble Tea v2](https://charm.land/bubbletea) + [Lip Gloss v2](https:
 - **Offline seed** — works without API access using realistic WC2026 sample data
 - **Responsive layout** — names and venues scale with terminal width; works at 80 cols and fullscreen
 
+## Install
+
+```bash
+go install github.com/djmelvee/golazo-tui/cmd/golazo-tui@latest
+```
+
+Installs the TUI binary to `$GOPATH/bin`. Requires Go 1.23+. For seeded or live data, build the helper binaries manually (see **Manual Setup** below).
+
 ## Quick Start (Windows)
 
 Double-click **`golazo.bat`** — it builds the binaries, seeds match data, and launches the TUI in one step. Requires [Go 1.23+](https://go.dev/dl/).
