@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and attach assets to (e.g. v0.6.1)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build binaries
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          VERSION="${TAG#v}"
+          mkdir -p dist
+          GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w" -o dist/golazo-tui-linux-amd64     ./cmd/golazo-tui
+          GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w" -o dist/golazo-tui-linux-arm64     ./cmd/golazo-tui
+          GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w" -o dist/golazo-tui-darwin-amd64    ./cmd/golazo-tui
+          GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w" -o dist/golazo-tui-darwin-arm64    ./cmd/golazo-tui
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/golazo-tui-windows-amd64.exe ./cmd/golazo-tui
+          cd dist
+          for f in golazo-tui-*; do
+            if [[ "$f" == *.exe ]]; then
+              zip "golazo-tui-${VERSION}-${f#golazo-tui-}" "$f"
+            else
+              tar -czf "golazo-tui-${VERSION}-${f#golazo-tui-}.tar.gz" "$f"
+            fi
+          done
+          ls -la
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          files: dist/*.tar.gz dist/*.zip
+          fail_on_unmatched_files: true
