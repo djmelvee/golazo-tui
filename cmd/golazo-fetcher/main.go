@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/djmelvee/golazo-tui/internal/auth"
 	"github.com/djmelvee/golazo-tui/internal/data"
 	"github.com/djmelvee/golazo-tui/internal/fetcher"
 	"github.com/djmelvee/golazo-tui/internal/wc"
@@ -37,33 +38,34 @@ func main() {
 		apiBase = "http://worldcup26.ir:3050"
 	}
 
-	apiToken := os.Getenv("GOLAZO_API_TOKEN")
-	if apiToken == "" {
-		fmt.Fprintln(os.Stderr, "Error: GOLAZO_API_TOKEN is not set.")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "To get a token (free, one-time registration):")
-		fmt.Fprintln(os.Stderr, `  curl -X POST http://worldcup26.ir:3050/auth/register \`)
-		fmt.Fprintln(os.Stderr, `       -H "Content-Type: application/json" \`)
-		fmt.Fprintln(os.Stderr, `       -d '{"username":"<you>","password":"<pass>","email":"<email>"}'`)
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Then:")
-		fmt.Fprintln(os.Stderr, "  export GOLAZO_API_TOKEN=<token>")
-		fmt.Fprintln(os.Stderr, "  golazo-fetcher --watch")
-		os.Exit(1)
-	}
-
 	db, err := data.Open(dbPath)
 	if err != nil {
 		log.Fatalf("open DB: %v", err)
 	}
 	defer db.Close()
 
+	apiToken := os.Getenv("GOLAZO_API_TOKEN")
+	if apiToken == "" {
+		apiToken = db.GetToken()
+	}
+	if apiToken == "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		tok, regErr := auth.Register(ctx, apiBase)
+		cancel()
+		if regErr != nil {
+			fmt.Fprintln(os.Stderr, "Error: no API token. Set GOLAZO_API_TOKEN or run golazo-tui once to auto-register.")
+			os.Exit(1)
+		}
+		apiToken = tok
+		_ = db.SetToken(tok)
+	}
+
 	client := wc.New(apiBase, apiToken)
 
 	do := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		if err := fetcher.Fetch(ctx, client, db); err != nil {
+		if _, err := fetcher.Fetch(ctx, client, db); err != nil {
 			log.Printf("fetch error: %v", err)
 		} else {
 			fmt.Printf("[%s] Fetched OK\n", time.Now().Format("15:04:05"))

@@ -1,22 +1,10 @@
 package screens
 
 import (
-	_ "time/tzdata"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
-
-// cetLoc is the Europe/Amsterdam timezone (CET/CEST). All match times in the
-// TUI are displayed in this zone since the user is based in the Netherlands.
-// Falls back to UTC if the timezone database is unavailable.
-var cetLoc = func() *time.Location {
-	loc, err := time.LoadLocation("Europe/Amsterdam")
-	if err != nil {
-		return time.UTC
-	}
-	return loc
-}()
 
 // clamp constrains v to [lo, hi].
 func clamp(v, lo, hi int) int {
@@ -58,5 +46,38 @@ type BlinkMsg time.Time
 func BlinkCmd() tea.Cmd {
 	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
 		return BlinkMsg(t)
+	})
+}
+
+// SplashTickMsg advances the boot animation frame.
+type SplashTickMsg time.Time
+
+// SplashTickCmd fires every 150ms during splash.
+func SplashTickCmd() tea.Cmd {
+	return tea.Tick(150*time.Millisecond, func(t time.Time) tea.Msg {
+		return SplashTickMsg(t)
+	})
+}
+
+// SplashDoneMsg ends the splash screen.
+type SplashDoneMsg struct{}
+
+// SplashDoneCmd fires after the splash duration.
+func SplashDoneCmd() tea.Cmd {
+	return tea.Tick(3500*time.Millisecond, func(t time.Time) tea.Msg {
+		return SplashDoneMsg{}
+	})
+}
+
+// CelebrationDoneMsg clears the goal celebration overlay.
+type CelebrationDoneMsg struct{}
+
+// CelebrationDuration is how long the goal celebration overlay stays visible.
+const CelebrationDuration = 10 * time.Second
+
+// CelebrationDoneCmd clears celebration after CelebrationDuration.
+func CelebrationDoneCmd() tea.Cmd {
+	return tea.Tick(CelebrationDuration, func(t time.Time) tea.Msg {
+		return CelebrationDoneMsg{}
 	})
 }

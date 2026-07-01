@@ -8,6 +8,7 @@ import (
 
 	"github.com/djmelvee/golazo-tui/internal/data"
 	"github.com/djmelvee/golazo-tui/internal/styles"
+	"github.com/djmelvee/golazo-tui/internal/tz"
 	"github.com/djmelvee/golazo-tui/internal/wc"
 )
 
@@ -19,8 +20,9 @@ type Live struct {
 	upcoming   []wc.Match
 	updatedAt  time.Time
 	blink      bool
-	cursor     int // selected live match index (sorted order)
+	cursor     int // selected row: live, FT, then upcoming
 	fetchNote  string
+	favorite   string
 	body       string
 }
 
@@ -36,76 +38,28 @@ func (l *Live) SetSize(w, h int) {
 }
 
 // Load fetches data from the cache and rebuilds the rendered body.
+// Live matches come only from the API live bucket — never inferred from kickoff time.
 func (l *Live) Load(db *data.Store) {
-	live := db.LiveMatches()
-	finished := db.FinishedMatches()
-	upcoming := db.UpcomingMatches()
-
-	// Track which match IDs are already in live/finished so that time-promoted
-	// entries from the upcoming slice don't create nil-score duplicates.
-	seenIDs := make(map[int]struct{}, len(live)+len(finished))
-	for _, m := range live {
-		seenIDs[m.ID] = struct{}{}
-	}
-	for _, m := range finished {
-		seenIDs[m.ID] = struct{}{}
-	}
-
-	// Promote upcoming matches based on kickoff time:
-	//   kickoff not yet reached → still upcoming
-	//   0–130 min after kickoff → move to live (score from API when available)
-	//   130+ min after kickoff  → move to finished
-	now := time.Now()
-	var stillUpcoming []wc.Match
-	for _, m := range upcoming {
-		if m.KickoffAt.IsZero() {
-			stillUpcoming = append(stillUpcoming, m)
-			continue
-		}
-		since := now.Sub(m.KickoffAt)
-		switch {
-		case since < -time.Minute:
-			stillUpcoming = append(stillUpcoming, m)
-		case since < 130*time.Minute:
-			if _, dup := seenIDs[m.ID]; dup {
-				continue
-			}
-			m.Status = wc.StatusLive
-			if m.Minute == nil {
-				min := derivedMinute(m.KickoffAt)
-				m.Minute = &min
-			}
-			live = append(live, m)
-			seenIDs[m.ID] = struct{}{}
-		default:
-			if _, dup := seenIDs[m.ID]; dup {
-				continue
-			}
-			m.Status = wc.StatusFinished
-			// Fill score from last-seen live data when the API hasn't
-			// yet set finished=true (avoids showing "– –" for ended games).
-			if m.HomeScore == nil || m.AwayScore == nil {
-				if h, a, ok := db.GetLastScore(m.ID); ok {
-					m.HomeScore = &h
-					m.AwayScore = &a
-				}
-			}
-			finished = append(finished, m)
-			seenIDs[m.ID] = struct{}{}
-		}
-	}
-
-	l.live = live
-	l.finished = finished
-	l.upcoming = stillUpcoming
+	l.live = db.LiveMatches()
+	l.finished = db.FinishedMatches()
+	l.upcoming = db.FutureMatches()
 	l.updatedAt = db.LastUpdated("matches:live")
-	total := len(l.live) + len(l.finished)
+	l.favorite = FavoriteName(db)
+	total := l.selectableCount()
 	if total == 0 {
 		l.cursor = 0
 	} else if l.cursor >= total {
 		l.cursor = total - 1
 	}
 	l.body = l.render(l.live, l.finished, l.upcoming)
+}
+
+func (l *Live) selectableCount() int {
+	up := len(l.upcoming)
+	if up > 12 {
+		up = 12
+	}
+	return len(l.live) + len(l.finished) + up
 }
 
 func (l *Live) View() string {
@@ -134,19 +88,17 @@ func (l *Live) CursorUp() {
 	}
 }
 
-// CursorDown moves selection down through live and then FT rows.
+// CursorDown moves selection down through live, FT, and upcoming rows.
 func (l *Live) CursorDown() {
-	total := len(l.live) + len(l.finished)
-	if l.cursor < total-1 {
+	if l.cursor < l.selectableCount()-1 {
 		l.cursor++
 		l.body = l.render(l.live, l.finished, l.upcoming)
 	}
 }
 
-// SelectedMatch returns the highlighted match (live or FT), or nil if none.
-// Slice order matches render() sort: live by minute desc, FT by kickoff desc.
+// SelectedMatch returns the highlighted match, or nil if none.
 func (l *Live) SelectedMatch() *wc.Match {
-	all := append(append([]wc.Match{}, l.live...), l.finished...)
+	all := l.orderedSelectable()
 	if len(all) == 0 {
 		return nil
 	}
@@ -156,6 +108,36 @@ func (l *Live) SelectedMatch() *wc.Match {
 	}
 	m := all[idx]
 	return &m
+}
+
+func (l *Live) orderedSelectable() []wc.Match {
+	live := append([]wc.Match{}, l.live...)
+	finished := append([]wc.Match{}, l.finished...)
+	upcoming := append([]wc.Match{}, l.upcoming...)
+	sort.Slice(live, func(i, j int) bool {
+		mi, mj := 0, 0
+		if live[i].Minute != nil {
+			mi = *live[i].Minute
+		}
+		if live[j].Minute != nil {
+			mj = *live[j].Minute
+		}
+		return mi > mj
+	})
+	sort.Slice(finished, func(i, j int) bool {
+		return finished[i].KickoffAt.After(finished[j].KickoffAt)
+	})
+	sort.Slice(upcoming, func(i, j int) bool {
+		return upcoming[i].KickoffAt.Before(upcoming[j].KickoffAt)
+	})
+	if len(upcoming) > 12 {
+		upcoming = upcoming[:12]
+	}
+	var all []wc.Match
+	all = append(all, live...)
+	all = append(all, finished...)
+	all = append(all, upcoming...)
+	return all
 }
 
 // liveWidths returns the name column width and venue max length for the
@@ -195,7 +177,7 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 	var sb strings.Builder
 
 	if !l.updatedAt.IsZero() {
-		line := fmt.Sprintf("  Updated %s CET  ·  auto-refreshes every 1s", l.updatedAt.In(cetLoc).Format("15:04"))
+		line := fmt.Sprintf("  Updated %s (%s)  ·  data polls every 5s · UI tick 1s", tz.FormatClock(l.updatedAt), tz.DisplayLabel())
 		if l.fetchNote != "" {
 			line += "  ·  " + l.fetchNote
 		}
@@ -230,7 +212,7 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 		})
 
 		for i, m := range live {
-			sb.WriteString(renderLiveRow(m, nameW, venueW, l.blink, i == l.cursor))
+			sb.WriteString(renderLiveRow(m, nameW, venueW, l.blink, i == l.cursor, l.favorite))
 			sb.WriteString("\n")
 		}
 		sb.WriteString("\n")
@@ -244,7 +226,7 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 			return finished[i].KickoffAt.After(finished[j].KickoffAt)
 		})
 		for i, m := range finished {
-			sb.WriteString(renderFTRow(m, nameW, venueW, (len(live)+i) == l.cursor))
+			sb.WriteString(renderFTRow(m, nameW, venueW, (len(live)+i) == l.cursor, l.favorite))
 			sb.WriteString("\n")
 		}
 		sb.WriteString("\n")
@@ -260,11 +242,12 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 		})
 
 		shown := upcoming
-		if len(shown) > 6 {
-			shown = shown[:6]
+		if len(shown) > 12 {
+			shown = shown[:12]
 		}
-		for _, m := range shown {
-			sb.WriteString(renderUpcomingRow(m, upNameW, upVenueW))
+		base := len(live) + len(finished)
+		for i, m := range shown {
+			sb.WriteString(renderUpcomingRow(m, upNameW, upVenueW, (base+i) == l.cursor, l.favorite))
 			sb.WriteString("\n")
 		}
 	}
@@ -279,7 +262,7 @@ func (l *Live) render(live, finished, upcoming []wc.Match) string {
 	return sb.String()
 }
 
-func renderLiveRow(m wc.Match, nameW, venueW int, blink, selected bool) string {
+func renderLiveRow(m wc.Match, nameW, venueW int, blink, selected bool, favorite string) string {
 	minute := "  --"
 	if m.Minute != nil {
 		minute = fmt.Sprintf("%3d'", *m.Minute)
@@ -305,13 +288,16 @@ func renderLiveRow(m wc.Match, nameW, venueW int, blink, selected bool) string {
 		prefix = styles.GoldText.Render("> ")
 	}
 	row := prefix + min + " " + teams
+	if favorite != "" && (m.HomeTeam.Name == favorite || m.AwayTeam.Name == favorite) {
+		row += " " + styles.GoldText.Render("★")
+	}
 	if venueW > 0 {
 		row += "  " + styles.DimText.Render(venueShort(m.Venue, venueW))
 	}
 	return row
 }
 
-func renderFTRow(m wc.Match, nameW, venueW int, selected bool) string {
+func renderFTRow(m wc.Match, nameW, venueW int, selected bool, favorite string) string {
 	score := "– –"
 	if m.HomeScore != nil && m.AwayScore != nil {
 		score = fmt.Sprintf("%d – %d", *m.HomeScore, *m.AwayScore)
@@ -328,49 +314,35 @@ func renderFTRow(m wc.Match, nameW, venueW int, selected bool) string {
 		styles.DimText.Render(score),
 		m.AwayTeam.Flag, nameW, awayName,
 	)
+	if favorite != "" && (m.HomeTeam.Name == favorite || m.AwayTeam.Name == favorite) {
+		row += " " + styles.GoldText.Render("★")
+	}
 	if venueW > 0 {
 		row += "  " + styles.DimText.Render(venueShort(m.Venue, venueW))
 	}
 	return row
 }
 
-func renderUpcomingRow(m wc.Match, nameW, venueW int) string {
-	kickoff := m.KickoffAt.In(cetLoc).Format("Mon 02 Jan  15:04")
+func renderUpcomingRow(m wc.Match, nameW, venueW int, selected bool, favorite string) string {
+	kickoff := tz.FormatKickoffShort(m.KickoffAt)
 	homeName := truncate(m.HomeTeam.Name, nameW)
 	awayName := truncate(m.AwayTeam.Name, nameW)
-	row := fmt.Sprintf("  %s %-*s vs  %s %-*s  %s",
-		m.HomeTeam.Flag, nameW, homeName,
+	prefix := "  "
+	if selected {
+		prefix = styles.GoldText.Render("> ")
+	}
+	row := fmt.Sprintf("%s%s %-*s vs  %s %-*s  %s",
+		prefix, m.HomeTeam.Flag, nameW, homeName,
 		m.AwayTeam.Flag, nameW, awayName,
 		styles.GoldText.Render(kickoff),
 	)
+	if favorite != "" && (m.HomeTeam.Name == favorite || m.AwayTeam.Name == favorite) {
+		row += " " + styles.GoldText.Render("★")
+	}
 	if venueW > 0 {
 		row += "  " + styles.DimText.Render(venueShort(m.Venue, venueW))
 	}
 	return row
-}
-
-// derivedMinute estimates the current match minute from kickoff time.
-// First half: 0–45 min elapsed → minute = elapsed.
-// Half-time:  45–62 min elapsed → minute = 45.
-// Second half: 62–107 min elapsed → minute = elapsed - 17.
-// After 107 min: capped at 90.
-func derivedMinute(kickoffAt time.Time) int {
-	if kickoffAt.IsZero() {
-		return 0
-	}
-	elapsed := int(time.Since(kickoffAt).Minutes())
-	switch {
-	case elapsed <= 0:
-		return 0
-	case elapsed < 45:
-		return elapsed
-	case elapsed < 62:
-		return 45
-	case elapsed < 107:
-		return elapsed - 17
-	default:
-		return 90
-	}
 }
 
 // FindMatch returns the promoted match by ID (live, finished, or upcoming).

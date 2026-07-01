@@ -118,24 +118,56 @@ func fetchDay(ctx context.Context, date string) ([]espnEvent, error) {
 			lastErr = err
 			continue
 		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("espn: HTTP %d for %s", resp.StatusCode, url)
-			continue
-		}
-		var r espnResponse
-		if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-			lastErr = err
-			continue
-		}
-		if len(r.Events) > 0 {
-			return r.Events, nil
+		var found []espnEvent
+		func() {
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				lastErr = fmt.Errorf("espn: HTTP %d for %s", resp.StatusCode, url)
+				return
+			}
+			var r espnResponse
+			if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+				lastErr = err
+				return
+			}
+			if len(r.Events) > 0 {
+				lastErr = nil
+				found = r.Events
+			}
+		}()
+		if len(found) > 0 {
+			return found, nil
 		}
 	}
 	if lastErr != nil {
 		return nil, lastErr
 	}
 	return nil, fmt.Errorf("espn: no events for %s", date)
+}
+
+// parseESPNMinute extracts the match minute from ESPN displayClock values
+// like "64'" or "90'+7'".
+func parseESPNMinute(clock string) (int, bool) {
+	clock = strings.TrimSpace(clock)
+	if clock == "" {
+		return 0, false
+	}
+	var digits strings.Builder
+	for _, r := range clock {
+		if r >= '0' && r <= '9' {
+			digits.WriteRune(r)
+		} else {
+			break
+		}
+	}
+	if digits.Len() == 0 {
+		return 0, false
+	}
+	m, err := strconv.Atoi(digits.String())
+	if err != nil {
+		return 0, false
+	}
+	return m, true
 }
 
 // ── DB patching ─────────────────────────────────────────────────────────────
@@ -196,8 +228,7 @@ func applyToCache(db *data.Store, events []espnEvent) error {
 
 		var minute *int
 		if status == wc.StatusLive {
-			parts := strings.SplitN(comp.Status.DisplayClock, ":", 2)
-			if m, err := strconv.Atoi(parts[0]); err == nil {
+			if m, ok := parseESPNMinute(comp.Status.DisplayClock); ok {
 				minute = &m
 			}
 		}
@@ -214,6 +245,7 @@ func applyToCache(db *data.Store, events []espnEvent) error {
 
 	// For each ESPN score record, find a matching DB match and patch it.
 	removeFromUpcoming := make(map[int]bool)
+	removeFromLive := make(map[int]bool)
 
 	for _, sc := range scores {
 		switch sc.status {
@@ -227,13 +259,27 @@ func applyToCache(db *data.Store, events []espnEvent) error {
 					m.Status = wc.StatusFinished
 					m.HomeScore = sc.homeScore
 					m.AwayScore = sc.awayScore
+					m.Minute = nil
 					finished = append(finished, m)
 					removeFromUpcoming[i] = true
 					finishedChanged = true
 					upcomingChanged = true
 				}
 			}
-			// 2. Patch nil scores in existing finished records.
+			// 2. Move from live → finished when ESPN reports the match as over.
+			for i, m := range live {
+				if !removeFromLive[i] && teamsMatch(m.HomeTeam.Name, m.AwayTeam.Name, sc.homeTeam, sc.awayTeam) {
+					m.Status = wc.StatusFinished
+					m.HomeScore = sc.homeScore
+					m.AwayScore = sc.awayScore
+					m.Minute = nil
+					finished = append(finished, m)
+					removeFromLive[i] = true
+					finishedChanged = true
+					liveChanged = true
+				}
+			}
+			// 3. Patch nil scores in existing finished records.
 			for i := range finished {
 				if finished[i].HomeScore == nil && teamsMatch(finished[i].HomeTeam.Name, finished[i].AwayTeam.Name, sc.homeTeam, sc.awayTeam) {
 					finished[i].HomeScore = sc.homeScore
@@ -259,9 +305,10 @@ func applyToCache(db *data.Store, events []espnEvent) error {
 					upcomingChanged = true
 				}
 			}
-			// Patch nil scores in existing live records.
+			// Always update score and minute for existing live records (not just
+			// nil ones) so the displayed minute and score stay current each poll.
 			for i := range live {
-				if live[i].HomeScore == nil && teamsMatch(live[i].HomeTeam.Name, live[i].AwayTeam.Name, sc.homeTeam, sc.awayTeam) {
+				if !removeFromLive[i] && teamsMatch(live[i].HomeTeam.Name, live[i].AwayTeam.Name, sc.homeTeam, sc.awayTeam) {
 					live[i].HomeScore = sc.homeScore
 					live[i].AwayScore = sc.awayScore
 					live[i].Minute = sc.minute
@@ -288,7 +335,13 @@ func applyToCache(db *data.Store, events []espnEvent) error {
 		}
 	}
 	if liveChanged {
-		if err := db.Set("matches:live", live); err != nil {
+		var keptLive []wc.Match
+		for i, m := range live {
+			if !removeFromLive[i] {
+				keptLive = append(keptLive, m)
+			}
+		}
+		if err := db.Set("matches:live", keptLive); err != nil {
 			return err
 		}
 	}

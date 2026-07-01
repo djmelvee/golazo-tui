@@ -7,6 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/djmelvee/golazo-tui/internal/styles"
+	"github.com/djmelvee/golazo-tui/internal/tz"
 	"github.com/djmelvee/golazo-tui/internal/wc"
 )
 
@@ -131,6 +132,13 @@ func (d *MatchDetail) render() string {
 	// ── MATCH INFO ────────────────────────────────────────────────────────────
 	stageLabel := stageString(m.Stage, m.Group, m.Matchday)
 	info := m.Venue
+	if !m.KickoffAt.IsZero() {
+		kick := tz.FormatKickoff(m.KickoffAt)
+		if info != "" {
+			info += "  ·  "
+		}
+		info += kick
+	}
 	if stageLabel != "" {
 		if info != "" {
 			info += "  ·  "
@@ -205,6 +213,26 @@ func (d *MatchDetail) render() string {
 		))
 	}
 
+	if m.HomeScore != nil && m.AwayScore != nil && (*m.HomeScore+*m.AwayScore) > 0 {
+		sb.WriteString("\n")
+		barW := contentW - 20
+		if barW < 10 {
+			barW = 10
+		}
+		total := *m.HomeScore + *m.AwayScore
+		homeW := (*m.HomeScore * barW) / total
+		awayW := barW - homeW
+		homeBar := strings.Repeat("█", homeW)
+		awayBar := strings.Repeat("█", awayW)
+		sb.WriteString(styles.DimText.Render("  Goals  ") +
+			styles.GoldText.Render(homeBar) +
+			styles.DimText.Render("│") +
+			styles.GoldBold.Render(awayBar) +
+			fmt.Sprintf("  %d – %d\n", *m.HomeScore, *m.AwayScore))
+	}
+
+	sb.WriteString(styles.DimText.Render("\n  Lineups / cards / VAR — not available from current API feed.\n"))
+
 	return sb.String()
 }
 
@@ -231,26 +259,45 @@ func (d *MatchDetail) buildEventLog() []displayEvent {
 		label: "Kick-off",
 	})
 
-	// Goal events from fetcher
-	for _, ev := range d.events {
-		team := m.HomeTeam
-		if ev.ScoredBy == "away" {
-			team = m.AwayTeam
+	// Prefer API scorer timeline when available.
+	if len(m.HomeScorers)+len(m.AwayScorers) > 0 {
+		for _, s := range m.HomeScorers {
+			evs = append(evs, displayEvent{
+				minute: s.Minute, priority: 1, icon: "⚽",
+				label: m.HomeTeam.Flag + "  " + styles.GoldText.Render(s.Name),
+			})
 		}
-		evs = append(evs, displayEvent{
-			minute: ev.Minute, priority: 1,
-			icon:  "⚽",
-			label: team.Flag + "  " + styles.GoldText.Render(team.Name),
-			score: fmt.Sprintf("%d – %d", ev.HomeScore, ev.AwayScore),
-		})
+		for _, s := range m.AwayScorers {
+			evs = append(evs, displayEvent{
+				minute: s.Minute, priority: 1, icon: "⚽",
+				label: m.AwayTeam.Flag + "  " + styles.GoldText.Render(s.Name),
+			})
+		}
+	} else {
+		for _, ev := range d.events {
+			team := m.HomeTeam
+			label := team.Flag + "  " + styles.GoldText.Render(team.Name)
+			if ev.ScoredBy == "away" {
+				team = m.AwayTeam
+				label = team.Flag + "  " + styles.GoldText.Render(team.Name)
+			}
+			if ev.ScorerName != "" {
+				label = team.Flag + "  " + styles.GoldText.Render(ev.ScorerName)
+			}
+			evs = append(evs, displayEvent{
+				minute: ev.Minute, priority: 1,
+				icon:  "⚽",
+				label: label,
+				score: fmt.Sprintf("%d – %d", ev.HomeScore, ev.AwayScore),
+			})
+		}
 	}
 
-	// Half-time — show once we're past 45'
 	if currentMinute >= 45 || m.Status == wc.StatusFinished {
 		evs = append(evs, displayEvent{
 			minute: 45, priority: 2,
-			icon:  "🔁",
-			label: styles.DimText.Render("Half-time"),
+			icon:  "╌╌",
+			label: styles.DimText.Render("── HT ──"),
 		})
 	}
 

@@ -1,39 +1,27 @@
 # ⚽ Golazo TUI
 
-A terminal dashboard for the **2026 FIFA World Cup** — live scores, group standings, and upcoming fixtures, all in your terminal.
+A terminal dashboard for the **2026 FIFA World Cup** — live scores, predictions, bracket, digest, and more.
 
 Built with [Bubble Tea v2](https://charm.land/bubbletea) + [Lip Gloss v2](https://charm.land/lipgloss) + SQLite (pure Go, no CGO).
 
-```
-  ╔══════════════════════════════════════════════════════════════════════╗
-  ║  ⚽  FIFA WORLD CUP 2026  ·  🇺🇸 USA  🇨🇦 CANADA  🇲🇽 MEXICO         ║
-  ╠══════════════╦═══════════════════════════════════════════════════════╣
-  ║ ⚽ GOLAZO    ║  Updated 21:04 CET  ·  auto-refreshes every 5s       ║
-  ║ ──────────── ║                                                       ║
-  ║ ● LIVE   [h] ║  No matches currently live · check back during        ║
-  ║   Standings  ║  match hours                                          ║
-  ║   Fixtures   ║                                                       ║
-  ║   Changelog  ║  FULL TIME                                            ║
-  ║ ──────────── ║  FT  🇲🇽 Mexico        2 – 0  🇿🇦 South Africa        ║
-  ║ 🏆 WC 2026   ║  FT  🇰🇷 South Korea   2 – 1  🇨🇿 Czech Republic      ║
-  ║ 48 Teams     ║  FT  🇺🇸 United States  4 – 1  🇵🇾 Paraguay           ║
-  ║ 12 Groups    ║  FT  🇦🇺 Australia      2 – 0  🇹🇷 Türkiye             ║
-  ╠══════════════╩═══════════════════════════════════════════════════════╣
-  ║  h live · g standings · f fixtures · c changelog · q quit           ║
-  ╚══════════════════════════════════════════════════════════════════════╝
-```
-
 ## Features
 
-- **Live dashboard** — current matches with live minute counter, gold score, and blinking ● indicator
-- **Match detail** — press Enter on a live match for a full detail view: score, goal timeline, progress bar
-- **Group standings** — all 12 groups (A–L), 48 teams, GD column, top-2 highlighted in gold
-- **Upcoming fixtures** — next matches grouped by date with matchday labels
-- **Changelog** — in-app changelog viewer (scrollable)
-- **Auto-refresh** — live screen polls the cache every 5 seconds; live indicator pulses every second
-- **Goal tracking** — fetcher detects score changes and logs goal events with minute
-- **Offline seed** — works without API access using realistic WC2026 sample data
-- **Responsive layout** — names and venues scale with terminal width; works at 80 cols and fullscreen
+- **Live dashboard** (`h`) — live minute, gold scores, blinking ●, favorite team ★, selectable upcoming
+- **Predictions** (`p`) — form-weighted forecasts with xG, confidence, accuracy badges, full breakdown on Enter
+- **Knockout bracket** (`b`) — ASCII tree with Enter → match detail
+- **Match-day digest** (`d`) — newspaper-style today view with headlines and recent goals
+- **Golden Boot** (`s`) — top scorers table
+- **Group standings** (`g`) — all 12 groups; Enter on a team → team hub
+- **Fixtures** (`f`) — scrollable list with group/knockout filter (`1`/`2`/`3`)
+- **Team hub** (`t`) — favorite team fixtures and form; cycle teams with `t`
+- **Match detail** — goal timeline, progress bar, event liveblog
+- **Golazo celebration** — 10s overlay with spinning ASCII ball on goals (any screen)
+- **Goal alerts** (`!`) — terminal bell + desktop notification (Windows toast / notify-send)
+- **Timezone** (`z`) — Amsterdam (default), local, or UTC
+- **Help** (`?`) — full keybinding reference
+- **Splash** — GOLAZO logo + 3D spinning soccer ball (skip with `GOLAZO_NO_SPLASH=1`)
+- **Auto-fetch** — built-in API poll every 5s; optional `golazo-fetcher` daemon
+- **Offline seed** — `golazo-seed` for demo data without API access
 
 ## Install
 
@@ -41,66 +29,70 @@ Built with [Bubble Tea v2](https://charm.land/bubbletea) + [Lip Gloss v2](https:
 go install github.com/djmelvee/golazo-tui/cmd/golazo-tui@latest
 ```
 
-Installs the TUI binary to `$GOPATH/bin`. Requires Go 1.23+. For seeded or live data, build the helper binaries manually (see **Manual Setup** below).
+Requires Go 1.23+.
 
 ## Quick Start (Windows)
 
-Double-click **`golazo.bat`** — it builds the binaries, seeds match data, and launches the TUI in one step. Requires [Go 1.23+](https://go.dev/dl/).
+Double-click **`golazo.bat`** — builds, seeds, and launches the TUI.
 
 ## Manual Setup
 
 ```bash
-# Build all three binaries
 go build -o bin/golazo-seed    ./cmd/golazo-seed
 go build -o bin/golazo-fetcher ./cmd/golazo-fetcher
 go build -o bin/golazo-tui     ./cmd/golazo-tui
-
-# Populate the cache with offline sample data
 ./bin/golazo-seed
-
-# Launch the dashboard
 ./bin/golazo-tui
 ```
 
-## Live Data (optional)
+## Live Data
 
-The fetcher polls `http://worldcup26.ir:3050`. Set your token and run:
+The TUI auto-registers a JWT on first launch and polls the API internally. Optionally run the fetcher daemon:
 
 ```bash
-export GOLAZO_API_TOKEN=your_token_here
-./bin/golazo-fetcher --watch --interval 60
+export GOLAZO_API_TOKEN=your_token   # optional — also read from SQLite cache
+./bin/golazo-fetcher --watch --interval 5
 ```
 
 | Env var | Default | Description |
 |---|---|---|
 | `GOLAZO_DB` | `~/.cache/golazo-tui/cache.db` | SQLite cache path |
 | `GOLAZO_API` | `http://worldcup26.ir:3050` | API base URL |
-| `GOLAZO_API_TOKEN` | *(required for fetcher)* | JWT bearer token |
+| `GOLAZO_API_TOKEN` | auto / cached | JWT bearer token |
+| `GOLAZO_NO_SPLASH` | — | Set to `1` to skip boot animation |
 
 ## Keybindings
 
 | Key | Action |
 |---|---|
 | `h` | Live dashboard |
+| `p` | Match predictions |
+| `b` | Knockout bracket |
+| `d` | Match-day digest |
+| `s` | Golden Boot scorers |
 | `g` | Group standings |
 | `f` | Upcoming fixtures |
+| `t` | Team hub (cycle favorite with `t`) |
 | `c` | Changelog |
-| `j` / `k` | Move cursor (live) · scroll (standings / changelog / detail) |
-| `Enter` | Open match detail for selected live match |
-| `b` | Back from match detail to live dashboard |
+| `?` | Help overlay |
+| `z` | Cycle timezone |
+| `!` | Toggle goal alerts |
+| `j` / `k` | Cursor or scroll (screen-dependent) |
+| `Enter` | Open match / prediction / team detail |
+| `esc` | Back from detail or help |
+| `1` `2` `3` | Fixtures filter: all / group / knockout |
 | `q` | Quit |
 
 ## Architecture
 
 ```
-golazo-fetcher  ──writes──▶  SQLite (WAL)  ──reads──▶  golazo-tui
-golazo-seed     ──writes──▶  SQLite (WAL)
+worldcup26.ir API ──▶ fetcher (atomic SQLite writes) ──▶ cache.db ──▶ golazo-tui
+ESPN fallback      ──▶ patch scores when API down
+golazo-seed        ──▶ offline demo data
 ```
-
-The TUI never touches the network — it reads only from the local SQLite cache. The fetcher and seed write to the same cache file. This decoupled design means the TUI stays fast and never blocks on a slow API.
 
 ## Stack
 
-- [`charm.land/bubbletea/v2`](https://charm.land/bubbletea) — TUI framework
-- [`charm.land/lipgloss/v2`](https://charm.land/lipgloss) — terminal styling
-- [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) — pure-Go SQLite (no CGO)
+- [Bubble Tea v2](https://charm.land/bubbletea) — TUI framework
+- [Lip Gloss v2](https://charm.land/lipgloss) — terminal styling
+- [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) — pure-Go SQLite

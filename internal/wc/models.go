@@ -11,6 +11,7 @@ type GoalEvent struct {
 	AwayScore  int       `json:"away_score"`
 	Minute     int       `json:"minute"`
 	ScoredBy   string    `json:"scored_by"` // "home" or "away"
+	ScorerName string    `json:"scorer_name,omitempty"`
 	DetectedAt time.Time `json:"detected_at"`
 }
 
@@ -40,8 +41,10 @@ type Match struct {
 	KickoffAt time.Time   `json:"kickoff_at"`
 	Venue     string      `json:"venue"`
 	Group     string      `json:"group"`    // "" for knockouts
-	Stage     string      `json:"stage"`    // "group", "r32", "r16", "qf", "sf", "final"
-	Matchday  int         `json:"matchday"` // 1–3 for group stage
+	Stage        string   `json:"stage"` // "group", "r32", "r16", "qf", "sf", "final"
+	Matchday     int      `json:"matchday"`
+	HomeScorers  []Scorer `json:"home_scorers,omitempty"`
+	AwayScorers  []Scorer `json:"away_scorers,omitempty"`
 }
 
 type GroupRow struct {

@@ -1,9 +1,9 @@
 package screens
 
 import (
-	"os"
 	"strings"
 
+	"github.com/djmelvee/golazo-tui/internal/embeddata"
 	"github.com/djmelvee/golazo-tui/internal/styles"
 )
 
@@ -19,19 +19,9 @@ func (c *Changelog) SetSize(w, h int) {
 	c.h = h
 }
 
-// Load reads CHANGELOG.md from the working directory and pre-renders each line.
+// Load reads the embedded CHANGELOG and pre-renders each line.
 func (c *Changelog) Load() {
-	raw, err := os.ReadFile("CHANGELOG.md")
-	if err != nil {
-		c.lines = []string{
-			styles.DimText.Render("  CHANGELOG.md not found."),
-			styles.DimText.Render("  Run golazo-tui from the project root directory."),
-		}
-		c.scroll = 0
-		return
-	}
-
-	rawLines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+	rawLines := strings.Split(strings.ReplaceAll(string(embeddata.Changelog), "\r\n", "\n"), "\n")
 	c.lines = make([]string, 0, len(rawLines))
 	for _, l := range rawLines {
 		c.lines = append(c.lines, renderChangelogLine(l))

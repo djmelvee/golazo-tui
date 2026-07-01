@@ -13,7 +13,10 @@ import (
 type Standings struct {
 	w, h   int
 	groups map[string][]wc.GroupRow
+	phase  string // "group" or "knockout"
 	scroll int
+	cursor int
+	teams  []wc.Team
 	lines  []string // pre-rendered lines for scroll
 }
 
@@ -26,7 +29,47 @@ func (s *Standings) SetSize(w, h int) {
 func (s *Standings) Load(db *data.Store) {
 	s.groups = db.Standings()
 	s.scroll = 0
+	s.phase = wc.TournamentPhase(db.AllMatches())
 	s.lines = s.renderLines()
+}
+
+func (s *Standings) CursorDown() {
+	if s.cursor < len(s.teams)-1 {
+		s.cursor++
+		s.lines = s.renderLines()
+		s.ensureVisible()
+	}
+}
+
+func (s *Standings) CursorUp() {
+	if s.cursor > 0 {
+		s.cursor--
+		s.lines = s.renderLines()
+		s.ensureVisible()
+	}
+}
+
+func (s *Standings) SelectedTeam() *wc.Team {
+	if s.cursor >= 0 && s.cursor < len(s.teams) {
+		t := s.teams[s.cursor]
+		return &t
+	}
+	return nil
+}
+
+func (s *Standings) ensureVisible() {
+	// rough scroll: ~1 line per team row after headers
+	row := 6 + s.cursor
+	vis := s.h - 8
+	if vis < 4 {
+		vis = 4
+	}
+	if row < s.scroll {
+		s.scroll = row
+	}
+	if row >= s.scroll+vis {
+		s.scroll = row - vis + 1
+	}
 }
 
 func (s *Standings) ScrollDown() {
@@ -89,8 +132,18 @@ func standingsNameWidth(contentW int) int {
 }
 
 func (s *Standings) renderLines() []string {
+	s.teams = nil
 	nameW := standingsNameWidth(s.w)
 	var lines []string
+
+	lines = append(lines, styles.Heading.Render("  FINAL GROUP STANDINGS")+"\n")
+	if s.phase == "knockout" {
+		lines = append(lines, styles.GoldText.Render("  Group stage complete — knockout phase underway")+"\n")
+		lines = append(lines, styles.DimText.Render("  Historical tables only · see Bracket [b] or Predictions [p]")+"\n")
+	} else {
+		lines = append(lines, styles.DimText.Render("  Group stage in progress")+"\n")
+	}
+	lines = append(lines, "")
 
 	for _, grp := range groupOrder {
 		rows, ok := s.groups[grp]
@@ -109,7 +162,8 @@ func (s *Standings) renderLines() []string {
 		lines = append(lines, styles.DimText.Render(colHdr))
 
 		for i, row := range rows {
-			lines = append(lines, renderGroupRow(row, i < 2, nameW))
+			s.teams = append(s.teams, row.Team)
+			lines = append(lines, renderGroupRow(row, i < 2, nameW, len(s.teams)-1 == s.cursor))
 		}
 
 		anyPlayed := false
@@ -120,7 +174,11 @@ func (s *Standings) renderLines() []string {
 			}
 		}
 		if anyPlayed {
-			lines = append(lines, styles.DimText.Render("  ✓ Top 2 advance to Round of 32"))
+			if s.phase == "knockout" {
+				lines = append(lines, styles.DimText.Render("  ✓ Top 2 advanced to Round of 32"))
+			} else {
+				lines = append(lines, styles.DimText.Render("  ✓ Top 2 advance to Round of 32"))
+			}
 		}
 		lines = append(lines, "")
 	}
@@ -128,7 +186,7 @@ func (s *Standings) renderLines() []string {
 	return lines
 }
 
-func renderGroupRow(row wc.GroupRow, advancing bool, nameW int) string {
+func renderGroupRow(row wc.GroupRow, advancing bool, nameW int, selected bool) string {
 	gd := fmt.Sprintf("%+d", row.GD)
 	if row.GD == 0 {
 		gd = "0"
@@ -139,6 +197,9 @@ func renderGroupRow(row wc.GroupRow, advancing bool, nameW int) string {
 		row.Played, row.W, row.D, row.L,
 		row.GF, row.GA, gd, row.Pts,
 	)
+	if selected {
+		return styles.GoldText.Render("> " + line[2:])
+	}
 	if advancing {
 		return styles.Advancing.Render(line)
 	}

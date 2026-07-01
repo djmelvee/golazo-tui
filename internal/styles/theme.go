@@ -2,8 +2,11 @@ package styles
 
 import (
 	"image/color"
+	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	"github.com/djmelvee/golazo-tui/internal/ascii"
 )
 
 // Palette — FIFA World Cup 2026 brand colours
@@ -84,6 +87,16 @@ func HeaderBar(w int) string {
 	return AppHeader.
 		Width(w).
 		Render(content)
+}
+
+// RenderHeader returns the ASCII multi-line header with brand styling.
+func RenderHeader(w int) string {
+	raw := ascii.HeaderBanner(w)
+	lines := strings.Split(raw, "\n")
+	for i, l := range lines {
+		lines[i] = AppHeader.Width(w).Render(l)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // Ensure color.Color is used (avoid import cycle with image/color)
