@@ -198,7 +198,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.route == "detail" && m.detail.MatchID() > 0 {
 			mid := m.detail.MatchID()
 			if match := m.db.FindMatch(mid); match != nil {
-				m.detail.Update(*match, m.db.GetEvents(mid))
+				m.detail.Update(*match, m.db.GetEvents(mid), m.db.AllMatches())
 			}
 		}
 		var cmds []tea.Cmd
@@ -218,7 +218,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.route == "detail" && m.detail.MatchID() > 0 {
 			mid := m.detail.MatchID()
 			if match := m.db.FindMatch(mid); match != nil {
-				m.detail.Update(*match, m.db.GetEvents(mid))
+				m.detail.Update(*match, m.db.GetEvents(mid), m.db.AllMatches())
 			}
 		}
 		if !m.toastUntil.IsZero() && time.Now().After(m.toastUntil) {
@@ -497,7 +497,7 @@ func (m *Model) bodyHeight() int {
 }
 
 func (m *Model) openDetail(match wc.Match) {
-	m.detail.Set(match, m.db.GetEvents(match.ID))
+	m.detail.Set(match, m.db.GetEvents(match.ID), m.db.AllMatches())
 	m.detail.SetSize(m.w-sidebarWidth, m.bodyHeight())
 	m.route = "detail"
 }

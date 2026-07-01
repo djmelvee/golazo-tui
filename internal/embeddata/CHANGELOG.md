@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-07-02
+
+### Added
+- **Rich match timeline** — opening a match now shows tournament form, stakes, H2H record, goal-by-goal commentary (first blood, equalizer, late drama), HT scoreline, second-half kick-off, explosive-half callouts, and full-time summaries (comebacks, clean sheets, knockout advancement)
+- **Match preview** — upcoming fixtures show a preview block instead of a blank events list
+- **Goal metadata** — penalty and own-goal tags, stoppage-time minutes (e.g. `90+2'`) parsed from API scorer strings
+
 ## [0.6.0] — 2026-07-02
 
 ### Added

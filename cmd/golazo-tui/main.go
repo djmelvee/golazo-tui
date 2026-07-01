@@ -18,7 +18,7 @@ import (
 	"github.com/djmelvee/golazo-tui/internal/wc"
 )
 
-const version = "v0.6.0"
+const version = "v0.6.1"
 
 func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")

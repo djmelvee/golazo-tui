@@ -11,6 +11,16 @@ func TestParseScorers(t *testing.T) {
 	if got[0].Name == "" || got[0].Minute != 67 {
 		t.Fatalf("first scorer: %+v", got[0])
 	}
+
+	pen := ParseScorers(`{"Striker 90+2' (p)"}`, "Team")
+	if len(pen) != 1 || !pen[0].Penalty || pen[0].Minute != 90 || pen[0].InjuryTime != 2 {
+		t.Fatalf("penalty scorer: %+v", pen[0])
+	}
+
+	og := ParseScorers(`{"Defender (OG) 55'"}`, "Team")
+	if len(og) != 1 || !og[0].OwnGoal || og[0].Minute != 55 {
+		t.Fatalf("own goal scorer: %+v", og[0])
+	}
 }
 
 func TestBuildTopScorers(t *testing.T) {

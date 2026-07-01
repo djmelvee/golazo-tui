@@ -10,9 +10,12 @@ import (
 
 // Scorer is a single goal from API scorer strings.
 type Scorer struct {
-	Name   string `json:"name"`
-	Minute int    `json:"minute"`
-	Team   string `json:"team,omitempty"`
+	Name        string `json:"name"`
+	Minute      int    `json:"minute"`
+	InjuryTime  int    `json:"injury_time,omitempty"`
+	Team        string `json:"team,omitempty"`
+	Penalty     bool   `json:"penalty,omitempty"`
+	OwnGoal     bool   `json:"own_goal,omitempty"`
 }
 
 // ScorerRow is an aggregated top-scorer entry.
@@ -23,7 +26,7 @@ type ScorerRow struct {
 	Goals int
 }
 
-var scorerMinuteRE = regexp.MustCompile(`(?i)^(.+?)\s+(\d+)(?:\+[0-9]+)?'?(?:\s*\(p\))?$`)
+var scorerMinuteRE = regexp.MustCompile(`(?i)^(.+?)\s+(\d+)(?:\+(\d+))?'?(?:\s*\(p\))?$`)
 
 // ParseScorers parses API home_scorers/away_scorers blobs into Scorer slices.
 func ParseScorers(raw, teamName string) []Scorer {
@@ -47,12 +50,26 @@ func ParseScorers(raw, teamName string) []Scorer {
 		if e == "" || strings.EqualFold(e, "null") {
 			continue
 		}
-		if idx := strings.Index(e, "(OG)"); idx > 0 {
-			e = strings.TrimSpace(e[:idx])
+		ownGoal := strings.Contains(e, "(OG)")
+		if ownGoal {
+			e = strings.ReplaceAll(e, "(OG)", "")
+			e = strings.TrimSpace(e)
 		}
-		if m := scorerMinuteRE.FindStringSubmatch(e); len(m) == 3 {
+		if m := scorerMinuteRE.FindStringSubmatch(e); len(m) >= 3 {
 			min, _ := strconv.Atoi(strings.TrimSpace(m[2]))
-			out = append(out, Scorer{Name: strings.TrimSpace(m[1]), Minute: min, Team: teamName})
+			injury := 0
+			if len(m) >= 4 && m[3] != "" {
+				injury, _ = strconv.Atoi(m[3])
+			}
+			penalty := strings.Contains(strings.ToLower(e), "(p)")
+			out = append(out, Scorer{
+				Name:       strings.TrimSpace(m[1]),
+				Minute:     min,
+				InjuryTime: injury,
+				Team:       teamName,
+				Penalty:    penalty,
+				OwnGoal:    ownGoal,
+			})
 		}
 	}
 	return out
